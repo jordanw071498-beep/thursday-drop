@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabase';
-import { User, Session } from '@supabase/supabase-js';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
 
-type Profile = {
+const TOKEN_KEY = 'thursday_drop_token';
+
+export type AuthProfile = {
   id: string;
   email: string;
   is_pro: boolean;
@@ -12,74 +12,70 @@ type Profile = {
 };
 
 type AuthContextType = {
-  session: Session | null;
-  user: User | null;
-  profile: Profile | null;
+  profile: AuthProfile | null;
+  token: string | null;
   loading: boolean;
+  signIn: (token: string, profile: AuthProfile) => void;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function fetchProfileFromApi(userId: string): Promise<Profile | null> {
-  try {
-    const res = await fetch('/api/profile', {
-      headers: { Authorization: `Bearer ${userId}` },
-    });
-    if (res.ok) return res.json();
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<AuthProfile | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setAuthTokenGetter(() => session.user!.id);
-        fetchProfileFromApi(session.user.id).then(p => {
-          setProfile(p);
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) {
+      setLoading(false);
+      return;
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        setAuthTokenGetter(() => session.user!.id);
-        fetchProfileFromApi(session.user.id).then(p => {
-          setProfile(p);
-          setLoading(false);
-        });
-      } else {
+    setAuthTokenGetter(() => stored);
+
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${stored}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Invalid session');
+        return res.json();
+      })
+      .then((p: AuthProfile) => {
+        setToken(stored);
+        setProfile(p);
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
         setAuthTokenGetter(null);
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+      })
+      .finally(() => setLoading(false));
   }, []);
 
+  const signIn = (newToken: string, newProfile: AuthProfile) => {
+    localStorage.setItem(TOKEN_KEY, newToken);
+    setAuthTokenGetter(() => newToken);
+    setToken(newToken);
+    setProfile(newProfile);
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored) {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${stored}` },
+      }).catch(() => {});
+    }
+    localStorage.removeItem(TOKEN_KEY);
     setAuthTokenGetter(null);
+    setToken(null);
+    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ profile, token, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

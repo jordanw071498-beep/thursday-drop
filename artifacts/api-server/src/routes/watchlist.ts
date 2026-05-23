@@ -1,20 +1,14 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, watchlistItemsTable, profilesTable } from "@workspace/db";
+import { db, watchlistItemsTable } from "@workspace/db";
 import {
   GetWatchlistResponse,
   AddToWatchlistBody,
   RemoveFromWatchlistParams,
 } from "@workspace/api-zod";
+import { getAuthProfile } from "../lib/auth.js";
 
 const router: IRouter = Router();
-
-function getUserId(req: any): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
-  const userId = authHeader.replace("Bearer ", "");
-  return userId || null;
-}
 
 function serializeWatchlistItem(item: typeof watchlistItemsTable.$inferSelect) {
   return {
@@ -26,8 +20,8 @@ function serializeWatchlistItem(item: typeof watchlistItemsTable.$inferSelect) {
 }
 
 router.get("/watchlist", async (req, res): Promise<void> => {
-  const userId = getUserId(req);
-  if (!userId) {
+  const profile = await getAuthProfile(req);
+  if (!profile) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -35,14 +29,14 @@ router.get("/watchlist", async (req, res): Promise<void> => {
   const items = await db
     .select()
     .from(watchlistItemsTable)
-    .where(eq(watchlistItemsTable.user_id, userId));
+    .where(eq(watchlistItemsTable.user_id, profile.id));
 
   res.json(GetWatchlistResponse.parse(items.map(serializeWatchlistItem)));
 });
 
 router.post("/watchlist", async (req, res): Promise<void> => {
-  const userId = getUserId(req);
-  if (!userId) {
+  const profile = await getAuthProfile(req);
+  if (!profile) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -53,19 +47,11 @@ router.post("/watchlist", async (req, res): Promise<void> => {
     return;
   }
 
-  const profile = await db
-    .select()
-    .from(profilesTable)
-    .where(eq(profilesTable.id, userId))
-    .limit(1);
-
-  const isPro = profile[0]?.is_pro ?? false;
-
-  if (!isPro) {
+  if (!profile.is_pro) {
     const existing = await db
       .select()
       .from(watchlistItemsTable)
-      .where(eq(watchlistItemsTable.user_id, userId));
+      .where(eq(watchlistItemsTable.user_id, profile.id));
 
     if (existing.length >= 5) {
       res.status(403).json({ error: "Free tier limit of 5 watchlist items reached. Upgrade to Pro for unlimited." });
@@ -78,7 +64,7 @@ router.post("/watchlist", async (req, res): Promise<void> => {
   const [item] = await db
     .insert(watchlistItemsTable)
     .values({
-      user_id: userId,
+      user_id: profile.id,
       wine_name: parsed.data.wine_name,
       vintage: parsed.data.vintage ?? null,
       producer: parsed.data.producer ?? null,
@@ -92,8 +78,8 @@ router.post("/watchlist", async (req, res): Promise<void> => {
 });
 
 router.delete("/watchlist/:id", async (req, res): Promise<void> => {
-  const userId = getUserId(req);
-  if (!userId) {
+  const profile = await getAuthProfile(req);
+  if (!profile) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -110,7 +96,7 @@ router.delete("/watchlist/:id", async (req, res): Promise<void> => {
     .where(
       and(
         eq(watchlistItemsTable.id, params.data.id),
-        eq(watchlistItemsTable.user_id, userId),
+        eq(watchlistItemsTable.user_id, profile.id),
       ),
     )
     .returning();

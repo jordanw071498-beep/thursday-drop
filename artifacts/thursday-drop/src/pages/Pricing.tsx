@@ -5,18 +5,18 @@ import { Check } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Pricing() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [, setLocation] = useLocation();
   const createCheckout = useCreateCheckout();
 
   const handleSubscribe = (plan: "monthly" | "annual") => {
-    if (!user) {
+    if (!profile) {
       setLocation("/login");
       return;
     }
     
     createCheckout.mutate(
-      { data: { plan, user_id: user.id, email: user.email || "" } },
+      { data: { plan, user_id: profile.id, email: profile.email || "" } },
       {
         onSuccess: (result) => {
           window.location.href = result.url;
@@ -68,9 +68,9 @@ export default function Pricing() {
               <Button 
                 variant="outline" 
                 className="w-full rounded-none font-bold tracking-widest uppercase h-12 border-border hover:bg-muted"
-                onClick={() => user ? setLocation("/account") : setLocation("/signup")}
+                onClick={() => profile ? setLocation("/account") : setLocation("/signup")}
               >
-                {user ? "Current Plan" : "Sign Up Free"}
+                {profile ? "Current Plan" : "Sign Up Free"}
               </Button>
             </div>
           </div>

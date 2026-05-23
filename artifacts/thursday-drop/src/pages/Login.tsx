@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -11,19 +11,33 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
+  const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
 
-    if (signInError) {
-      setError(signInError.message);
-      setLoading(false);
-    } else {
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Login failed. Please try again.");
+        return;
+      }
+
+      signIn(data.token, data.profile);
       setLocation("/watchlist");
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +50,11 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6 bg-card p-8 border border-border shadow-xl">
-          {error && <div className="text-destructive text-sm text-center bg-destructive/10 p-3 border border-destructive/20">{error}</div>}
+          {error && (
+            <div className="text-destructive text-sm text-center bg-destructive/10 p-3 border border-destructive/20">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -75,7 +93,8 @@ export default function Login() {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don't have an account? <Link href="/signup" className="text-primary hover:underline">Sign up</Link>
+            Don't have an account?{" "}
+            <Link href="/signup" className="text-primary hover:underline">Sign up</Link>
           </p>
         </form>
       </div>

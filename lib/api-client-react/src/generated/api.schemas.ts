@@ -5,6 +5,11 @@
  * Thursday Drop API
  * OpenAPI spec version: 0.1.0
  */
+export interface AuthCredentials {
+  email: string;
+  password: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -13,6 +18,11 @@ export interface Profile {
   /** @nullable */
   stripe_customer_id?: string | null;
   created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  profile: Profile;
 }
 
 export interface CreateProfileInput {

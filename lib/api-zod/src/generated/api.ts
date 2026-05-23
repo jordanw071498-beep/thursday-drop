@@ -9,6 +9,49 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Create a new account
+ */
+export const AuthSignupBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+
+/**
+ * @summary Log in with email and password
+ */
+export const AuthLoginBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+export const AuthLoginResponse = zod.object({
+  "token": zod.string(),
+  "profile": zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "is_pro": zod.boolean(),
+  "is_admin": zod.boolean(),
+  "stripe_customer_id": zod.string().nullish(),
+  "created_at": zod.string()
+})
+})
+
+
+/**
+ * @summary Get current user profile
+ */
+export const AuthMeResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "is_pro": zod.boolean(),
+  "is_admin": zod.boolean(),
+  "stripe_customer_id": zod.string().nullish(),
+  "created_at": zod.string()
+})
+
+
+/**
  * @summary Get the current user's profile
  */
 export const GetProfileResponse = zod.object({

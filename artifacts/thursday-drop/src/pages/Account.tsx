@@ -2,7 +2,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 
 export default function Account() {
-  const { user, profile, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-background px-6 py-12">
@@ -17,7 +17,7 @@ export default function Account() {
             <h2 className="font-serif text-2xl border-b border-border pb-4">Profile Details</h2>
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div className="text-muted-foreground uppercase tracking-widest">Email</div>
-              <div className="col-span-2 font-medium">{user?.email}</div>
+              <div className="col-span-2 font-medium">{profile?.email}</div>
               
               <div className="text-muted-foreground uppercase tracking-widest">Status</div>
               <div className="col-span-2">

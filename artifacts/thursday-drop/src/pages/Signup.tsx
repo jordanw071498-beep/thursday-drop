@@ -1,73 +1,45 @@
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const [, setLocation] = useLocation();
+  const { signIn } = useAuth();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/login`,
-      },
-    });
-
-    if (signUpError) {
-      setError(signUpError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (data.user) {
-      await fetch("/api/profile", {
+    try {
+      const res = await fetch("/api/auth/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.user.id}`,
-        },
-        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
-      if (data.session) {
-        setLocation("/watchlist");
-      } else {
-        setEmailSent(true);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Signup failed. Please try again.");
+        return;
       }
+
+      signIn(data.token, data.profile);
+      setLocation("/watchlist");
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
-
-  if (emailSent) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <div className="w-full max-w-md space-y-8 text-center bg-card p-8 border border-border">
-          <h2 className="font-serif text-4xl text-primary mb-2">Check Your Email</h2>
-          <p className="text-muted-foreground text-lg">
-            We sent a confirmation link to <strong className="text-foreground">{email}</strong>.
-            Click it to activate your account and sign in.
-          </p>
-          <Link href="/login" className="inline-block mt-6 text-primary hover:underline text-sm">
-            Back to login
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -78,7 +50,11 @@ export default function Signup() {
         </div>
 
         <form onSubmit={handleSignup} className="space-y-6 bg-card p-8 border border-border shadow-xl">
-          {error && <div className="text-destructive text-sm text-center bg-destructive/10 p-3 border border-destructive/20">{error}</div>}
+          {error && (
+            <div className="text-destructive text-sm text-center bg-destructive/10 p-3 border border-destructive/20">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -119,7 +95,8 @@ export default function Signup() {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Already have an account? <Link href="/login" className="text-primary hover:underline">Log in</Link>
+            Already have an account?{" "}
+            <Link href="/login" className="text-primary hover:underline">Log in</Link>
           </p>
         </form>
       </div>

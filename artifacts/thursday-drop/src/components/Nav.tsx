@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useState, useEffect } from "react";
 
 export function Nav() {
-  const { user, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export function Nav() {
         </div>
 
         <div className="flex items-center gap-6">
-          {user ? (
+          {profile ? (
             <>
               <Link href="/watchlist" className="text-sm tracking-widest uppercase hover:text-primary transition-colors">
                 Watchlist

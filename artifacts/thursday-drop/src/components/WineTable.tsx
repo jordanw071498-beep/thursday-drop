@@ -17,13 +17,13 @@ interface WineTableProps {
 }
 
 export function WineTable({ wines, showWatchButton = false, showReleaseLabel = false, showSoldOut = true }: WineTableProps) {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const { toast } = useToast();
   const addToWatchlist = useAddToWatchlist();
   const [openPopover, setOpenPopover] = useState<number | null>(null);
 
   const handleAddExact = (wine: Wine) => {
-    if (!user) {
+    if (!profile) {
       toast({ title: "Authentication Required", description: "Please log in to add wines to your watchlist.", variant: "destructive" });
       return;
     }
@@ -51,7 +51,7 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
   };
 
   const handleAddProducer = (wine: Wine) => {
-    if (!user) {
+    if (!profile) {
       toast({ title: "Authentication Required", description: "Please log in to add wines to your watchlist.", variant: "destructive" });
       return;
     }
