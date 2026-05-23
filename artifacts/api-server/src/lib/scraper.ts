@@ -1,4 +1,4 @@
-import { db, releaseCyclesTable, winesTable } from "@workspace/db";
+import { db, releaseCyclesTable, winesTable, watchlistItemsTable, alertsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -19,6 +19,11 @@ interface ScrapedWine {
   buy_url: string | null;
 }
 
+function extractVintageFromName(wineName: string): string | null {
+  const match = wineName.match(/\b(19|20)\d{2}\b/);
+  return match ? match[0] : null;
+}
+
 async function discoverProgramIds(): Promise<{ programId: string; label: string; type: string }[]> {
   const pages = [
     { url: `${BASE_URL}/SpecialOffers.aspx?lang=en`, type: "special_offers" },
@@ -36,7 +41,6 @@ async function discoverProgramIds(): Promise<{ programId: string; label: string;
       if (!resp.ok) continue;
       const html = await resp.text();
       const programRegex = /programId=(\d+)/gi;
-      const labelRegex = /class="[^"]*program[^"]*"[^>]*>([^<]+)</gi;
       let match;
       const seen = new Set<string>();
 
@@ -93,13 +97,17 @@ async function scrapeProgram(programId: string): Promise<ScrapedWine[]> {
           return m ? m[1].replace(/<[^>]+>/g, "").trim() : null;
         };
 
+        const wineName = getText(/class="[^"]*wine-name[^"]*"[^>]*>(.*?)<\/td>/i) ?? "Unknown Wine";
+        const scrapedVintage = getText(/class="[^"]*vintage[^"]*"[^>]*>(.*?)<\/td>/i);
+        const vintage = scrapedVintage || extractVintageFromName(wineName);
+
         wines.push({
-          wine_name: getText(/class="[^"]*wine-name[^"]*"[^>]*>(.*?)<\/td>/i) ?? "Unknown Wine",
+          wine_name: wineName,
           producer: getText(/class="[^"]*producer[^"]*"[^>]*>(.*?)<\/td>/i),
           lcbo_number: getText(/class="[^"]*lcbo[^"]*"[^>]*>(.*?)<\/td>/i),
           region: getText(/class="[^"]*region[^"]*"[^>]*>(.*?)<\/td>/i),
           region_category: null,
-          vintage: getText(/class="[^"]*vintage[^"]*"[^>]*>(.*?)<\/td>/i),
+          vintage,
           score: getText(/class="[^"]*score[^"]*"[^>]*>(.*?)<\/td>/i),
           score_source: getText(/class="[^"]*score-source[^"]*"[^>]*>(.*?)<\/td>/i),
           price: getText(/class="[^"]*price[^"]*"[^>]*>\$?([\d.]+)/i),
@@ -119,6 +127,28 @@ async function scrapeProgram(programId: string): Promise<ScrapedWine[]> {
   }
 
   return wines;
+}
+
+function wineMatchesWatchlistItem(
+  wine: { wine_name: string; producer: string | null; vintage: string | null },
+  item: { wine_name: string; vintage: string | null; producer: string | null; match_type: string },
+): boolean {
+  if (item.match_type === "producer") {
+    if (!item.producer || !wine.producer) return false;
+    return wine.producer.toLowerCase().includes(item.producer.toLowerCase()) ||
+      item.producer.toLowerCase().includes(wine.producer.toLowerCase());
+  }
+
+  const nameMatch = wine.wine_name.toLowerCase().includes(item.wine_name.toLowerCase()) ||
+    item.wine_name.toLowerCase().includes(wine.wine_name.toLowerCase());
+
+  if (!nameMatch) return false;
+
+  if (item.vintage) {
+    return wine.vintage === item.vintage;
+  }
+
+  return true;
 }
 
 export async function runScraper(): Promise<{ message: string; wines_found: number }> {
@@ -144,8 +174,9 @@ export async function runScraper(): Promise<{ message: string; wines_found: numb
       })
       .returning();
 
+    const insertedWines = [];
     for (const wine of wines) {
-      await db.insert(winesTable).values({
+      const [inserted] = await db.insert(winesTable).values({
         release_cycle_id: cycle.id,
         wine_name: wine.wine_name,
         producer: wine.producer,
@@ -160,7 +191,25 @@ export async function runScraper(): Promise<{ message: string; wines_found: numb
         closing_date: wine.closing_date,
         buy_url: wine.buy_url,
         sold_out: false,
-      });
+      }).returning();
+      insertedWines.push(inserted);
+    }
+
+    const watchlistItems = await db.select().from(watchlistItemsTable);
+    for (const insertedWine of insertedWines) {
+      for (const watchlistItem of watchlistItems) {
+        if (wineMatchesWatchlistItem(
+          { wine_name: insertedWine.wine_name, producer: insertedWine.producer, vintage: insertedWine.vintage },
+          watchlistItem,
+        )) {
+          await db.insert(alertsTable).values({
+            user_id: watchlistItem.user_id,
+            wine_id: insertedWine.id,
+            wine_name: insertedWine.wine_name,
+            sent: false,
+          }).onConflictDoNothing();
+        }
+      }
     }
 
     totalWines += wines.length;

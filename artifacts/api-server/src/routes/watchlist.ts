@@ -16,6 +16,15 @@ function getUserId(req: any): string | null {
   return userId || null;
 }
 
+function serializeWatchlistItem(item: typeof watchlistItemsTable.$inferSelect) {
+  return {
+    ...item,
+    match_threshold:
+      item.match_threshold != null ? Number(item.match_threshold) : null,
+    created_at: item.created_at.toISOString(),
+  };
+}
+
 router.get("/watchlist", async (req, res): Promise<void> => {
   const userId = getUserId(req);
   if (!userId) {
@@ -28,16 +37,7 @@ router.get("/watchlist", async (req, res): Promise<void> => {
     .from(watchlistItemsTable)
     .where(eq(watchlistItemsTable.user_id, userId));
 
-  res.json(
-    GetWatchlistResponse.parse(
-      items.map((item) => ({
-        ...item,
-        match_threshold:
-          item.match_threshold != null ? Number(item.match_threshold) : null,
-        created_at: item.created_at.toISOString(),
-      })),
-    ),
-  );
+  res.json(GetWatchlistResponse.parse(items.map(serializeWatchlistItem)));
 });
 
 router.post("/watchlist", async (req, res): Promise<void> => {
@@ -73,23 +73,22 @@ router.post("/watchlist", async (req, res): Promise<void> => {
     }
   }
 
+  const matchType = parsed.data.match_type ?? "exact";
+
   const [item] = await db
     .insert(watchlistItemsTable)
     .values({
       user_id: userId,
       wine_name: parsed.data.wine_name,
+      vintage: parsed.data.vintage ?? null,
       producer: parsed.data.producer ?? null,
       region: parsed.data.region ?? null,
+      match_type: matchType,
       match_threshold: parsed.data.match_threshold?.toString() ?? null,
     })
     .returning();
 
-  res.status(201).json({
-    ...item,
-    match_threshold:
-      item.match_threshold != null ? Number(item.match_threshold) : null,
-    created_at: item.created_at.toISOString(),
-  });
+  res.status(201).json(serializeWatchlistItem(item));
 });
 
 router.delete("/watchlist/:id", async (req, res): Promise<void> => {

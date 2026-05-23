@@ -5,13 +5,17 @@
  * Thursday Drop API
  * OpenAPI spec version: 0.1.0
  */
+import type { WatchlistItemInputMatchType } from './watchlistItemInputMatchType';
 
 export interface WatchlistItemInput {
   wine_name: string;
   /** @nullable */
+  vintage?: string | null;
+  /** @nullable */
   producer?: string | null;
   /** @nullable */
   region?: string | null;
+  match_type?: WatchlistItemInputMatchType;
   /** @nullable */
   match_threshold?: number | null;
 }

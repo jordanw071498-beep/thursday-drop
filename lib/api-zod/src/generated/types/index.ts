@@ -19,6 +19,8 @@ export * from './releaseWithWines';
 export * from './scrapeResult';
 export * from './watchlistItem';
 export * from './watchlistItemInput';
+export * from './watchlistItemInputMatchType';
+export * from './watchlistItemMatchType';
 export * from './weeklyPicksInput';
 export * from './wine';
 export * from './wineStats';

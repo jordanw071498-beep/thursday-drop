@@ -6,8 +6,10 @@ export const watchlistItemsTable = pgTable("watchlist_items", {
   id: serial("id").primaryKey(),
   user_id: text("user_id").notNull(),
   wine_name: text("wine_name").notNull(),
+  vintage: text("vintage"),
   producer: text("producer"),
   region: text("region"),
+  match_type: text("match_type").notNull().default("exact"),
   match_threshold: numeric("match_threshold", { precision: 5, scale: 1 }),
   created_at: timestamp("created_at").notNull().defaultNow(),
 });

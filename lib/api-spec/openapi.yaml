@@ -440,25 +440,35 @@ components:
           type: string
         wine_name:
           type: string
+        vintage:
+          type: ["string", "null"]
         producer:
           type: ["string", "null"]
         region:
           type: ["string", "null"]
+        match_type:
+          type: string
+          enum: [exact, producer]
         match_threshold:
           type: ["number", "null"]
         created_at:
           type: string
-      required: [id, user_id, wine_name, created_at]
+      required: [id, user_id, wine_name, match_type, created_at]
 
     WatchlistItemInput:
       type: object
       properties:
         wine_name:
           type: string
+        vintage:
+          type: ["string", "null"]
         producer:
           type: ["string", "null"]
         region:
           type: ["string", "null"]
+        match_type:
+          type: string
+          enum: [exact, producer]
         match_threshold:
           type: ["number", "null"]
       required: [wine_name]

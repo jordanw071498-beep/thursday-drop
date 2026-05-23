@@ -17,7 +17,7 @@ export default function Admin() {
   const [body, setBody] = useState("");
 
   const handleScrape = () => {
-    triggerScrape.mutate({}, {
+    triggerScrape.mutate(undefined, {
       onSuccess: () => {
         toast({ title: "Scrape Triggered", description: "Data is being updated." });
         refetch();
@@ -26,7 +26,7 @@ export default function Admin() {
   };
 
   const handleAlerts = () => {
-    sendAlerts.mutate({}, {
+    sendAlerts.mutate(undefined, {
       onSuccess: () => {
         toast({ title: "Alerts Sent", description: "Notifications dispatched to users." });
       }

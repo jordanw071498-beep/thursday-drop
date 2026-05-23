@@ -74,25 +74,47 @@ export interface WineStats {
   score_distribution: WineStatsScoreDistributionItem[];
 }
 
+export type WatchlistItemMatchType = typeof WatchlistItemMatchType[keyof typeof WatchlistItemMatchType];
+
+
+export const WatchlistItemMatchType = {
+  exact: 'exact',
+  producer: 'producer',
+} as const;
+
 export interface WatchlistItem {
   id: number;
   user_id: string;
   wine_name: string;
   /** @nullable */
+  vintage?: string | null;
+  /** @nullable */
   producer?: string | null;
   /** @nullable */
   region?: string | null;
+  match_type: WatchlistItemMatchType;
   /** @nullable */
   match_threshold?: number | null;
   created_at: string;
 }
 
+export type WatchlistItemInputMatchType = typeof WatchlistItemInputMatchType[keyof typeof WatchlistItemInputMatchType];
+
+
+export const WatchlistItemInputMatchType = {
+  exact: 'exact',
+  producer: 'producer',
+} as const;
+
 export interface WatchlistItemInput {
   wine_name: string;
+  /** @nullable */
+  vintage?: string | null;
   /** @nullable */
   producer?: string | null;
   /** @nullable */
   region?: string | null;
+  match_type?: WatchlistItemInputMatchType;
   /** @nullable */
   match_threshold?: number | null;
 }
