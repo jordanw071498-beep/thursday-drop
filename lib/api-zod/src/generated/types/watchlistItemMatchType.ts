@@ -11,5 +11,6 @@ export type WatchlistItemMatchType = typeof WatchlistItemMatchType[keyof typeof 
 
 export const WatchlistItemMatchType = {
   exact: 'exact',
+  wine: 'wine',
   producer: 'producer',
 } as const;

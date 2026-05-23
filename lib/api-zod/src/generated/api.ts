@@ -252,7 +252,7 @@ export const GetWatchlistResponseItem = zod.object({
   "vintage": zod.string().nullish(),
   "producer": zod.string().nullish(),
   "region": zod.string().nullish(),
-  "match_type": zod.enum(['exact', 'producer']),
+  "match_type": zod.enum(['exact', 'wine', 'producer']),
   "match_threshold": zod.number().nullish(),
   "created_at": zod.string()
 })
@@ -267,7 +267,7 @@ export const AddToWatchlistBody = zod.object({
   "vintage": zod.string().nullish(),
   "producer": zod.string().nullish(),
   "region": zod.string().nullish(),
-  "match_type": zod.enum(['exact', 'producer']).optional(),
+  "match_type": zod.enum(['exact', 'wine', 'producer']).optional(),
   "match_threshold": zod.number().nullish()
 })
 

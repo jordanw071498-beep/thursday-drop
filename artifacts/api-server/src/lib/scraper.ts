@@ -133,17 +133,25 @@ function wineMatchesWatchlistItem(
   wine: { wine_name: string; producer: string | null; vintage: string | null },
   item: { wine_name: string; vintage: string | null; producer: string | null; match_type: string },
 ): boolean {
+  // Producer match: any wine from this producer, ignore wine name and vintage
   if (item.match_type === "producer") {
     if (!item.producer || !wine.producer) return false;
     return wine.producer.toLowerCase().includes(item.producer.toLowerCase()) ||
       item.producer.toLowerCase().includes(wine.producer.toLowerCase());
   }
 
+  // Name match used by both "wine" and "exact"
   const nameMatch = wine.wine_name.toLowerCase().includes(item.wine_name.toLowerCase()) ||
     item.wine_name.toLowerCase().includes(wine.wine_name.toLowerCase());
 
   if (!nameMatch) return false;
 
+  // Wine match: any vintage of this wine, ignore vintage entirely
+  if (item.match_type === "wine") {
+    return true;
+  }
+
+  // Exact match: wine name AND vintage must match (vintage optional — if not set, any vintage matches)
   if (item.vintage) {
     return wine.vintage === item.vintage;
   }

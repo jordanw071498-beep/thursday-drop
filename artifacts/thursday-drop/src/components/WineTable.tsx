@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/lib/AuthContext";
 import { useAddToWatchlist } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Wine as WineIcon, User } from "lucide-react";
+import { Plus, Wine as WineIcon, User, Calendar } from "lucide-react";
 import { useState } from "react";
 
 interface WineTableProps {
@@ -22,11 +22,16 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
   const addToWatchlist = useAddToWatchlist();
   const [openPopover, setOpenPopover] = useState<number | null>(null);
 
-  const handleAddExact = (wine: Wine) => {
+  function requireAuth(): boolean {
     if (!profile) {
-      toast({ title: "Authentication Required", description: "Please log in to add wines to your watchlist.", variant: "destructive" });
-      return;
+      toast({ title: "Sign in required", description: "Please log in to add wines to your watchlist.", variant: "destructive" });
+      return false;
     }
+    return true;
+  }
+
+  const handleAddExact = (wine: Wine) => {
+    if (!requireAuth()) return;
     setOpenPopover(null);
     addToWatchlist.mutate(
       {
@@ -40,10 +45,35 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
       },
       {
         onSuccess: () => {
-          toast({ title: "Tracking Wine", description: `${wine.wine_name}${wine.vintage ? ` ${wine.vintage}` : ""} added to your watchlist.` });
+          toast({ title: "Tracking — Exact", description: `${wine.wine_name}${wine.vintage ? ` ${wine.vintage}` : ""} only.` });
         },
         onError: (err: any) => {
-          const msg = err?.response?.data?.error || "Failed to add to watchlist.";
+          const msg = err?.data?.error || "Failed to add to watchlist.";
+          toast({ title: "Error", description: msg, variant: "destructive" });
+        }
+      }
+    );
+  };
+
+  const handleAddWine = (wine: Wine) => {
+    if (!requireAuth()) return;
+    setOpenPopover(null);
+    addToWatchlist.mutate(
+      {
+        data: {
+          wine_name: wine.wine_name,
+          vintage: null,
+          producer: wine.producer,
+          region: wine.region,
+          match_type: "wine",
+        }
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Tracking — Any Vintage", description: `Any vintage of ${wine.wine_name}.` });
+        },
+        onError: (err: any) => {
+          const msg = err?.data?.error || "Failed to add to watchlist.";
           toast({ title: "Error", description: msg, variant: "destructive" });
         }
       }
@@ -51,12 +81,9 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
   };
 
   const handleAddProducer = (wine: Wine) => {
-    if (!profile) {
-      toast({ title: "Authentication Required", description: "Please log in to add wines to your watchlist.", variant: "destructive" });
-      return;
-    }
+    if (!requireAuth()) return;
     if (!wine.producer) {
-      toast({ title: "No Producer", description: "This wine has no producer listed.", variant: "destructive" });
+      toast({ title: "No producer listed", description: "This wine has no producer to track.", variant: "destructive" });
       return;
     }
     setOpenPopover(null);
@@ -70,10 +97,10 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
       },
       {
         onSuccess: () => {
-          toast({ title: "Tracking Producer", description: `You'll be alerted for any wine from ${wine.producer}.` });
+          toast({ title: "Tracking — Producer", description: `Any wine from ${wine.producer}.` });
         },
         onError: (err: any) => {
-          const msg = err?.response?.data?.error || "Failed to add to watchlist.";
+          const msg = err?.data?.error || "Failed to add to watchlist.";
           toast({ title: "Error", description: msg, variant: "destructive" });
         }
       }
@@ -152,19 +179,35 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
                         <Plus className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-52 p-1 rounded-none border-border bg-card" align="end">
+                    <PopoverContent className="w-64 p-1 rounded-none border-border bg-card" align="end">
+                      <div className="px-3 py-2 border-b border-border mb-1">
+                        <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">Track this wine</p>
+                      </div>
+
                       <button
                         onClick={() => handleAddExact(wine)}
                         className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-background transition-colors text-left"
                       >
                         <WineIcon className="h-4 w-4 text-primary shrink-0" />
                         <div>
-                          <div className="font-medium">Track This Wine</div>
+                          <div className="font-medium">This wine, this vintage</div>
                           <div className="text-xs text-muted-foreground">
-                            {wine.vintage ? `${wine.wine_name} ${wine.vintage}` : wine.wine_name}
+                            {wine.vintage ? `${wine.wine_name} ${wine.vintage} only` : wine.wine_name}
                           </div>
                         </div>
                       </button>
+
+                      <button
+                        onClick={() => handleAddWine(wine)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-background transition-colors text-left"
+                      >
+                        <Calendar className="h-4 w-4 text-primary shrink-0" />
+                        <div>
+                          <div className="font-medium">This wine, any vintage</div>
+                          <div className="text-xs text-muted-foreground">{wine.wine_name} — any year</div>
+                        </div>
+                      </button>
+
                       <button
                         onClick={() => handleAddProducer(wine)}
                         disabled={!wine.producer}
@@ -172,7 +215,7 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
                       >
                         <User className="h-4 w-4 text-primary shrink-0" />
                         <div>
-                          <div className="font-medium">Track This Producer</div>
+                          <div className="font-medium">Any wine by this producer</div>
                           <div className="text-xs text-muted-foreground">{wine.producer ?? 'No producer listed'}</div>
                         </div>
                       </button>
