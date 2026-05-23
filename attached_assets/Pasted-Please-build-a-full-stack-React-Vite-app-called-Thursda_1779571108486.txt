@@ -1,0 +1,36 @@
+Please build a full-stack React + Vite app called Thursday Drop. Here is everything you need to create:
+Tech stack: React, Vite, Tailwind CSS, Supabase for database and auth, Resend for email, Stripe for payments. Deploy target is Vercel.
+Create this exact file and folder structure:
+
+package.json with dependencies: react, react-dom, react-router-dom, @supabase/supabase-js, @stripe/stripe-js, tailwindcss, vite, @vitejs/plugin-react, autoprefixer, postcss
+vite.config.js
+tailwind.config.js with custom colors: burgundy #3D0C11, cream #F2EBD9, gold #B8860B
+index.html
+src/main.jsx
+src/App.jsx with React Router routes for: / (Landing), /login, /signup, /release, /history, /pricing, /watchlist (protected), /account (protected), /admin (admin only)
+src/index.css with Tailwind imports and custom component classes
+src/lib/supabase.js — Supabase client using VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+src/lib/AuthContext.jsx — React context managing user session, profile (is_pro, is_admin), signUp, signIn, signOut using Supabase auth
+src/components/Nav.jsx — fixed top nav with logo, links, auth state
+src/components/WineTable.jsx — reusable table component for displaying wines with columns: wine name, producer, LCBO number, region, score with badge, price, qty available, optional watch button, optional release label, optional sold-out status
+src/pages/Landing.jsx — hero with email capture, live release table pulled from Supabase, how it works section, pricing preview
+src/pages/Login.jsx — email/password login form using Supabase auth
+src/pages/Signup.jsx — signup form using Supabase auth
+src/pages/Release.jsx — full current release with filters by region, score, price. Data from Supabase wines table joined to latest release_cycle
+src/pages/History.jsx — full wine archive from Supabase, filterable by release cycle, region, sold-out status. Gated behind is_pro check
+src/pages/Pricing.jsx — Free vs Pro pricing cards with Stripe checkout integration
+src/pages/Watchlist.jsx — shows user's watchlist from Supabase, search wines to add, free tier capped at 5 items, pro unlimited
+src/pages/Account.jsx — tabs for subscription status, email preferences, profile settings
+src/pages/Admin.jsx — admin only. Tabs for: Scraper (shows active programs list from Supabase, manual trigger button calling /api/scrape), Matches and Alerts (shows queued alerts, send buttons), Weekly Picks email composer with subject and body fields and send button calling /api/send-picks, Overview stats showing subscriber count and MRR
+api/scrape.js — Vercel serverless function. Fetches vintagesshoponline.com Special Offers page, Monthly Features page, and Bordeaux Futures page to discover all active programIds automatically. For each programId fetches the wine table at https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=XXXX&lang=en handling pagination. Parses wine name, LCBO number, region, score, score source, price, qty available, closing date. Writes to Supabase wines table and release_cycles table. Then runs matching engine comparing wines against all user watchlists. Protected by CRON_SECRET header.
+api/send-alerts.js — Vercel serverless function. Reads queued alerts from Supabase, sends personalized emails via Resend with wine name, price, score, qty, direct LCBO buy link. Marks alerts as sent.
+api/send-picks.js — Vercel serverless function. Accepts subject and body, sends to all Pro subscribers via Resend.
+api/stripe-webhook.js — Vercel serverless function. Handles Stripe webhook events: checkout.session.completed, customer.subscription.deleted. Updates is_pro on profiles table in Supabase.
+api/create-checkout.js — Vercel serverless function. Creates Stripe checkout session for Pro monthly or annual plan. Returns checkout URL.
+scraper/index.js — standalone Node.js script that does the same as api/scrape.js but can be run manually with node scraper/index.js
+vercel.json — configures cron job to call /api/scrape every Thursday at 9am using cron expression 0 9 * * 4
+.env.example — lists all required environment variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, STRIPE_SECRET_KEY, VITE_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, ADMIN_PASSWORD, CRON_SECRET
+supabase/schema.sql — complete SQL to create all tables: profiles (id, email, is_pro, is_admin, stripe_customer_id, created_at), release_cycles (id, program_id, program_label, program_type, release_date, closing_date, scraped_at, wine_count), wines (id, release_cycle_id, wine_name, producer, lcbo_number, region, region_category, vintage, score, score_source, price, qty_available, closing_date, buy_url, sold_out), watchlist_items (id, user_id, wine_name, producer, region, match_type, created_at), alerts (id, user_id, wine_id, match_type, status, sent_at, created_at), email_leads (id, email, created_at). Include Row Level Security policies so users can only see their own watchlist and alerts. Include indexes on wines.release_cycle_id, watchlist_items.user_id, alerts.user_id.*
+
+Design: dark burgundy background #3D0C11, cream text #F2EBD9, gold accents #B8860B. Playfair Display serif font for headings, Jost sans for body. Premium wine retailer aesthetic, not a tech startup. No rounded pill buttons. No bright colors. Generous whitespace.
+Write complete working code for every file. No placeholder comments. No 'add your logic here'. Full implementations only.
