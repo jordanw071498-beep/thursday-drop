@@ -1,8 +1,11 @@
 import Stripe from "stripe";
+import { StripeSync } from "stripe-replit-sync";
 
-let connectionSettings: any;
-
-async function getCredentials() {
+async function getCredentials(): Promise<{
+  publishableKey: string;
+  secretKey: string;
+  webhookSecret: string;
+}> {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? "repl " + process.env.REPL_IDENTITY
@@ -15,7 +18,11 @@ async function getCredentials() {
     if (!secretKey) {
       throw new Error("Stripe credentials not available");
     }
-    return { secretKey, publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "" };
+    return {
+      secretKey,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+    };
   }
 
   const connectorName = "stripe";
@@ -34,19 +41,17 @@ async function getCredentials() {
     },
   });
 
-  const data = await response.json() as { items?: any[] };
-  connectionSettings = data.items?.[0];
+  const data = (await response.json()) as { items?: any[] };
+  const connectionSettings = data.items?.[0];
 
-  if (
-    !connectionSettings ||
-    !connectionSettings.settings?.secret
-  ) {
+  if (!connectionSettings?.settings?.secret) {
     throw new Error(`Stripe ${targetEnvironment} connection not found`);
   }
 
   return {
     publishableKey: connectionSettings.settings.publishable ?? "",
     secretKey: connectionSettings.settings.secret,
+    webhookSecret: connectionSettings.settings.webhook_secret ?? "",
   };
 }
 
@@ -58,4 +63,16 @@ export async function getUncachableStripeClient() {
 export async function getStripePublishableKey() {
   const { publishableKey } = await getCredentials();
   return publishableKey;
+}
+
+export async function getStripeSync(): Promise<StripeSync> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error("DATABASE_URL required for Stripe sync");
+
+  const { secretKey, webhookSecret } = await getCredentials();
+  return new StripeSync({
+    poolConfig: { connectionString: databaseUrl },
+    stripeSecretKey: secretKey,
+    stripeWebhookSecret: webhookSecret,
+  });
 }

@@ -303,6 +303,26 @@ export const CreateCheckoutResponse = zod.object({
 
 
 /**
+ * @summary Get the current user's subscription info
+ */
+export const GetSubscriptionInfoResponse = zod.object({
+  "is_pro": zod.boolean(),
+  "plan_type": zod.union([zod.literal('monthly'),zod.literal('annual'),zod.literal(null)]).nullish(),
+  "period_end": zod.string().nullish(),
+  "cancel_at_period_end": zod.boolean()
+})
+
+
+/**
+ * @summary Cancel the current user's subscription
+ */
+export const CancelSubscriptionResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Get admin dashboard stats
  */
 export const GetAdminStatsResponse = zod.object({

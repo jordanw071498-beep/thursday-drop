@@ -24,6 +24,7 @@ import type {
   AlertResult,
   AuthCredentials,
   AuthResponse,
+  CancelSubscriptionResult,
   CheckoutInput,
   CheckoutResult,
   CreateProfileInput,
@@ -34,6 +35,7 @@ import type {
   ReleaseCycle,
   ReleaseWithWines,
   ScrapeResult,
+  SubscriptionInfo,
   WatchlistItem,
   WatchlistItemInput,
   WeeklyPicksInput,
@@ -1464,6 +1466,153 @@ export const useStripeWebhook = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getStripeWebhookMutationOptions(options));
+    }
+
+export const getGetSubscriptionInfoUrl = () => {
+
+
+
+
+  return `/api/stripe/subscription-info`
+}
+
+/**
+ * @summary Get the current user's subscription info
+ */
+export const getSubscriptionInfo = async ( options?: RequestInit): Promise<SubscriptionInfo> => {
+
+  return customFetch<SubscriptionInfo>(getGetSubscriptionInfoUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSubscriptionInfoQueryKey = () => {
+    return [
+    `/api/stripe/subscription-info`
+    ] as const;
+    }
+
+
+export const getGetSubscriptionInfoQueryOptions = <TData = Awaited<ReturnType<typeof getSubscriptionInfo>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubscriptionInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSubscriptionInfoQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubscriptionInfo>>> = ({ signal }) => getSubscriptionInfo({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubscriptionInfo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSubscriptionInfoQueryResult = NonNullable<Awaited<ReturnType<typeof getSubscriptionInfo>>>
+export type GetSubscriptionInfoQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the current user's subscription info
+ */
+
+export function useGetSubscriptionInfo<TData = Awaited<ReturnType<typeof getSubscriptionInfo>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubscriptionInfo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSubscriptionInfoQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCancelSubscriptionUrl = () => {
+
+
+
+
+  return `/api/stripe/cancel-subscription`
+}
+
+/**
+ * @summary Cancel the current user's subscription
+ */
+export const cancelSubscription = async ( options?: RequestInit): Promise<CancelSubscriptionResult> => {
+
+  return customFetch<CancelSubscriptionResult>(getCancelSubscriptionUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCancelSubscriptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSubscription>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelSubscription>>, TError,void, TContext> => {
+
+const mutationKey = ['cancelSubscription'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelSubscription>>, void> = () => {
+
+
+          return  cancelSubscription(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelSubscriptionMutationResult = NonNullable<Awaited<ReturnType<typeof cancelSubscription>>>
+
+    export type CancelSubscriptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Cancel the current user's subscription
+ */
+export const useCancelSubscription = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelSubscription>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelSubscription>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCancelSubscriptionMutationOptions(options));
     }
 
 export const getGetAdminStatsUrl = () => {

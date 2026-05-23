@@ -167,6 +167,31 @@ export interface CheckoutResult {
   url: string;
 }
 
+/**
+ * @nullable
+ */
+export type SubscriptionInfoPlanType = typeof SubscriptionInfoPlanType[keyof typeof SubscriptionInfoPlanType] | null;
+
+
+export const SubscriptionInfoPlanType = {
+  monthly: 'monthly',
+  annual: 'annual',
+} as const;
+
+export interface SubscriptionInfo {
+  is_pro: boolean;
+  /** @nullable */
+  plan_type?: SubscriptionInfoPlanType;
+  /** @nullable */
+  period_end?: string | null;
+  cancel_at_period_end: boolean;
+}
+
+export interface CancelSubscriptionResult {
+  success: boolean;
+  message: string;
+}
+
 export interface AdminStats {
   total_subscribers: number;
   pro_subscribers: number;

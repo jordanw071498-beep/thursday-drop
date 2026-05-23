@@ -14,14 +14,17 @@ export default function Pricing() {
       setLocation("/login");
       return;
     }
-    
+
     createCheckout.mutate(
       { data: { plan, user_id: profile.id, email: profile.email || "" } },
       {
         onSuccess: (result) => {
           window.location.href = result.url;
-        }
-      }
+        },
+        onError: () => {
+          alert("Unable to start checkout. Please try again.");
+        },
+      },
     );
   };
 
@@ -31,7 +34,7 @@ export default function Pricing() {
         <div className="text-center space-y-6">
           <h1 className="font-serif text-5xl md:text-6xl text-primary">Membership</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Choose the tier that matches your collecting ambition. 
+            Choose the tier that matches your collecting ambition.
           </p>
         </div>
 
@@ -47,7 +50,7 @@ export default function Pricing() {
               <p className="text-muted-foreground pb-6 border-b border-border">
                 For the casual enthusiast looking to stay informed.
               </p>
-              
+
               <ul className="space-y-4 pt-6">
                 <li className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
@@ -63,12 +66,12 @@ export default function Pricing() {
                 </li>
               </ul>
             </div>
-            
+
             <div className="pt-8">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full rounded-none font-bold tracking-widest uppercase h-12 border-border hover:bg-muted"
-                onClick={() => profile ? setLocation("/account") : setLocation("/signup")}
+                onClick={() => (profile ? setLocation("/account") : setLocation("/signup"))}
               >
                 {profile ? "Current Plan" : "Sign Up Free"}
               </Button>
@@ -83,13 +86,13 @@ export default function Pricing() {
             <div className="space-y-4 flex-grow">
               <h3 className="font-serif text-2xl text-primary">Pro Collector</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-light">$15</span>
+                <span className="text-4xl font-light">$4.99</span>
                 <span className="text-muted-foreground">/ month</span>
               </div>
               <p className="text-muted-foreground pb-6 border-b border-border">
                 For serious collectors hunting specific allocations.
               </p>
-              
+
               <ul className="space-y-4 pt-6">
                 <li className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
@@ -105,27 +108,39 @@ export default function Pricing() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
-                  <span>Priority SMS drop alerts</span>
+                  <span>Priority email drop alerts</span>
                 </li>
               </ul>
             </div>
-            
-            <div className="pt-8 space-y-4">
-              <Button 
-                className="w-full rounded-none font-bold tracking-widest uppercase h-12"
-                onClick={() => handleSubscribe("monthly")}
-                disabled={createCheckout.isPending}
-              >
-                {createCheckout.isPending ? "Processing..." : "Subscribe Monthly"}
-              </Button>
-              <Button 
-                variant="ghost"
-                className="w-full rounded-none tracking-widest uppercase text-xs hover:text-primary hover:bg-transparent"
-                onClick={() => handleSubscribe("annual")}
-                disabled={createCheckout.isPending}
-              >
-                Or $120 / Year (Save 33%)
-              </Button>
+
+            <div className="pt-8 space-y-3">
+              {profile?.is_pro ? (
+                <Button
+                  variant="outline"
+                  className="w-full rounded-none font-bold tracking-widest uppercase h-12 border-primary text-primary"
+                  onClick={() => setLocation("/account")}
+                >
+                  Manage Subscription
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    className="w-full rounded-none font-bold tracking-widest uppercase h-12"
+                    onClick={() => handleSubscribe("monthly")}
+                    disabled={createCheckout.isPending}
+                  >
+                    {createCheckout.isPending ? "Processing…" : "Subscribe — $4.99 / month"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full rounded-none tracking-widest uppercase text-xs hover:text-primary hover:bg-transparent"
+                    onClick={() => handleSubscribe("annual")}
+                    disabled={createCheckout.isPending}
+                  >
+                    Or $49.99 / year&ensp;—&ensp;Save 17%
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

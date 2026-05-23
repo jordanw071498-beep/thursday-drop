@@ -368,6 +368,38 @@ paths:
         "200":
           description: Handled
 
+  /stripe/subscription-info:
+    get:
+      operationId: getSubscriptionInfo
+      tags: [stripe]
+      summary: Get the current user's subscription info
+      responses:
+        "200":
+          description: Subscription info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionInfo"
+        "401":
+          description: Unauthorized
+
+  /stripe/cancel-subscription:
+    post:
+      operationId: cancelSubscription
+      tags: [stripe]
+      summary: Cancel the current user's subscription
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelSubscriptionResult"
+        "401":
+          description: Unauthorized
+        "400":
+          description: No active subscription
+
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -648,6 +680,29 @@ components:
         url:
           type: string
       required: [url]
+
+    SubscriptionInfo:
+      type: object
+      properties:
+        is_pro:
+          type: boolean
+        plan_type:
+          type: ["string", "null"]
+          enum: [monthly, annual, null]
+        period_end:
+          type: ["string", "null"]
+        cancel_at_period_end:
+          type: boolean
+      required: [is_pro, cancel_at_period_end]
+
+    CancelSubscriptionResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
 
     AdminStats:
       type: object

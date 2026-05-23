@@ -17,6 +17,7 @@ type AuthContextType = {
   loading: boolean;
   signIn: (token: string, profile: AuthProfile) => void;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +26,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchProfile = async (storedToken: string): Promise<AuthProfile | null> => {
+    const res = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${storedToken}` },
+    });
+    if (!res.ok) throw new Error('Invalid session');
+    return res.json() as Promise<AuthProfile>;
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
@@ -35,14 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setAuthTokenGetter(() => stored);
 
-    fetch('/api/auth/me', {
-      headers: { Authorization: `Bearer ${stored}` },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Invalid session');
-        return res.json();
-      })
-      .then((p: AuthProfile) => {
+    fetchProfile(stored)
+      .then((p) => {
         setToken(stored);
         setProfile(p);
       })
@@ -74,8 +77,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
+  const refreshProfile = async () => {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return;
+    try {
+      const p = await fetchProfile(stored);
+      setProfile(p);
+    } catch {
+      // session may have expired
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ profile, token, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ profile, token, loading, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
