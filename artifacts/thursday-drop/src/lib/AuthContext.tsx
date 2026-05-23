@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { User, Session } from '@supabase/supabase-js';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 
 type Profile = {
-  user_id: string;
+  id: string;
   email: string;
   is_pro: boolean;
   is_admin: boolean;
-  stripe_customer_id?: string;
+  stripe_customer_id?: string | null;
 };
 
 type AuthContextType = {
@@ -20,6 +21,18 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function fetchProfileFromApi(userId: string): Promise<Profile | null> {
+  try {
+    const res = await fetch('/api/profile', {
+      headers: { Authorization: `Bearer ${userId}` },
+    });
+    if (res.ok) return res.json();
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -30,15 +43,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      else setLoading(false);
+      if (session?.user) {
+        setAuthTokenGetter(() => session.user!.id);
+        fetchProfileFromApi(session.user.id).then(p => {
+          setProfile(p);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      else {
+      if (session?.user) {
+        setAuthTokenGetter(() => session.user!.id);
+        fetchProfileFromApi(session.user.id).then(p => {
+          setProfile(p);
+          setLoading(false);
+        });
+      } else {
+        setAuthTokenGetter(null);
         setProfile(null);
         setLoading(false);
       }
@@ -47,25 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      if (!error && data) {
-        setProfile(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const signOut = async () => {
     await supabase.auth.signOut();
+    setAuthTokenGetter(null);
   };
 
   return (

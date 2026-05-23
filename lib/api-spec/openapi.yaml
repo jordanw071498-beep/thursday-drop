@@ -7,6 +7,8 @@ servers:
   - url: /api
     description: Base API path
 tags:
+  - name: profile
+    description: User profile operations
   - name: health
     description: Health operations
   - name: releases
@@ -22,6 +24,42 @@ tags:
   - name: admin
     description: Admin operations
 paths:
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get the current user's profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Not found
+    post:
+      operationId: createProfile
+      tags: [profile]
+      summary: Create or update profile for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: Unauthorized
+
   /healthz:
     get:
       operationId: healthCheck
@@ -328,6 +366,30 @@ paths:
 
 components:
   schemas:
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        is_pro:
+          type: boolean
+        is_admin:
+          type: boolean
+        stripe_customer_id:
+          type: ["string", "null"]
+        created_at:
+          type: string
+      required: [id, email, is_pro, is_admin, created_at]
+
+    CreateProfileInput:
+      type: object
+      properties:
+        email:
+          type: string
+      required: [email]
+
     HealthStatus:
       type: object
       properties:

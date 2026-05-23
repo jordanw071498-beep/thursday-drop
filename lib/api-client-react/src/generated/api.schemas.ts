@@ -5,6 +5,20 @@
  * Thursday Drop API
  * OpenAPI spec version: 0.1.0
  */
+export interface Profile {
+  id: string;
+  email: string;
+  is_pro: boolean;
+  is_admin: boolean;
+  /** @nullable */
+  stripe_customer_id?: string | null;
+  created_at: string;
+}
+
+export interface CreateProfileInput {
+  email: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

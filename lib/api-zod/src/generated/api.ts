@@ -9,6 +9,27 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the current user's profile
+ */
+export const GetProfileResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "is_pro": zod.boolean(),
+  "is_admin": zod.boolean(),
+  "stripe_customer_id": zod.string().nullish(),
+  "created_at": zod.string()
+})
+
+
+/**
+ * @summary Create or update profile for the current user
+ */
+export const CreateProfileBody = zod.object({
+  "email": zod.string()
+})
+
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
