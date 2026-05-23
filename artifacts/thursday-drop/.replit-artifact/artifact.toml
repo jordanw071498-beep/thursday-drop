@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Thursday Drop"
+version = "1.0.0"
+id = "artifacts/thursday-drop"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22590
+
+[services.development]
+run = "pnpm --filter @workspace/thursday-drop run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/thursday-drop", "run", "build" ]
+publicDir = "artifacts/thursday-drop/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22590"
+BASE_PATH = "/"
