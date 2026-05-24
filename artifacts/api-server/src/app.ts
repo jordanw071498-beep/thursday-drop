@@ -28,11 +28,7 @@ app.post(
   express.raw({ type: "application/json" }),
   async (req, res): Promise<void> => {
     const sig = req.headers["stripe-signature"];
-    if (!sig) {
-      res.status(400).json({ error: "Missing stripe-signature header" });
-      return;
-    }
-    const signature = Array.isArray(sig) ? sig[0] : sig;
+    const signature = Array.isArray(sig) ? sig[0] : (sig ?? "");
 
     try {
       await WebhookHandlers.processWebhook(req.body as Buffer, signature);
