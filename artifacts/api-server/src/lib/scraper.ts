@@ -17,10 +17,13 @@ interface ProgramInfo {
   label: string;
   type: string;
   closingDate: string | null;
+  displayOrder: number;
+  status: "preview" | "available";
 }
 
 interface ScrapedWine {
   wine_name: string;
+  wine_key: string;
   producer: string | null;
   lcbo_number: string | null;
   region: string | null;
@@ -99,6 +102,21 @@ function extractProducer(wineName: string): string | null {
   return words.slice(0, Math.min(2, words.length)).join(" ") || null;
 }
 
+/**
+ * Normalize a wine name into a stable lookup key.
+ * Lowercases, strips accents/diacritics, removes punctuation, collapses whitespace.
+ * e.g. "Château Sassicaia Bolgheri 2019" → "chateau sassicaia bolgheri 2019"
+ */
+function generateWineKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")  // strip diacritics
+    .replace(/[^a-z0-9\s]/g, "")      // remove punctuation
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractFormFields($: cheerio.CheerioAPI): Record<string, string> {
   const fields: Record<string, string> = {};
   $("input[type=hidden]").each((_, el) => {
@@ -141,9 +159,11 @@ function parseWines($: cheerio.CheerioAPI, programId: string, closingDate: strin
     const producer = extractProducer(wineName);
     const region_category = categorizeRegion(region ?? "", currentGroup);
     const buy_url = `https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=${programId}&lang=en`;
+    const wine_key = generateWineKey(wineName);
 
     wines.push({
       wine_name: wineName,
+      wine_key,
       producer,
       lcbo_number: lcboNumber,
       region,
@@ -167,19 +187,17 @@ function parseWines($: cheerio.CheerioAPI, programId: string, closingDate: strin
  * Strategy 2: first <a> with a __doPostBack href that appears AFTER the active <span> in the pager
  */
 function findNextPageLink($: cheerio.CheerioAPI, currentPage: number): string | null {
-  // Strategy 1: aria-label match
   const exact = $(`a.pagerButtonClass[aria-label="Page ${currentPage + 1}"]`);
   if (exact.length > 0) {
     const href = exact.first().attr("href") ?? "";
     if (href.includes("__doPostBack")) return href;
   }
 
-  // Strategy 2: any pager anchor that comes after the active span
   let pastActive = false;
   let found: string | null = null;
   $(".pagerButtonClass").each((_, el) => {
     if (found) return;
-    const tag = (el as { name?: string; type?: string }).name?.toLowerCase() ?? "";
+    const tag = (el as { name?: string }).name?.toLowerCase() ?? "";
     if (tag === "span") {
       pastActive = true;
       return;
@@ -262,21 +280,33 @@ async function discoverPrograms(): Promise<ProgramInfo[]> {
     try {
       const html = await fetchHtml(page.url);
       const $ = cheerio.load(html);
-      let found = 0;
+      let position = 0;
 
       $("a[href*='OrderProgramProducts.aspx?programId=']").each((_, el) => {
         const href = $(el).attr("href") ?? "";
         const m = href.match(/programId=(\d+)/);
         if (!m || seen.has(m[1])) return;
         seen.add(m[1]);
-        found++;
+
+        const $row = $(el).closest("tr");
+        const rowText = $row.text().toUpperCase();
+        const status: "preview" | "available" = rowText.includes("PREVIEW") ? "preview" : "available";
 
         const label = $(el).text().trim();
-        const closingDate = $(el).closest("tr").find("td").eq(1).text().trim() || null;
-        programs.push({ programId: m[1], label, type: page.type, closingDate });
+        // Second cell often holds the closing/ordering date
+        const closingDate = $row.find("td").eq(1).text().trim() || null;
+
+        programs.push({
+          programId: m[1],
+          label,
+          type: page.type,
+          closingDate,
+          displayOrder: position++,
+          status,
+        });
       });
 
-      logger.info({ url: page.url, found }, "Index page scraped");
+      logger.info({ url: page.url, found: position }, "Index page scraped");
     } catch (err) {
       logger.warn({ err, url: page.url }, "Index page failed");
     }
@@ -348,7 +378,6 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
         summaries.push({ programId: info.programId, label: info.label, pages: 0, wines: 0, skipped: true, errors: [], sample: [] });
         continue;
       }
-      // Force mode: delete existing data before re-scraping
       logger.info({ programId: info.programId, cycleId: existing[0].id }, "Force mode: deleting existing data");
       await db.delete(winesTable).where(eq(winesTable.release_cycle_id, existing[0].id));
       await db.delete(releaseCyclesTable).where(eq(releaseCyclesTable.id, existing[0].id));
@@ -370,6 +399,8 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
         program_type: info.type,
         closing_date: info.closingDate,
         wine_count: wines.length,
+        display_order: info.displayOrder,
+        status: info.status,
       })
       .returning();
 
@@ -381,6 +412,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
         .values({
           release_cycle_id: cycle.id,
           wine_name: w.wine_name,
+          wine_key: w.wine_key,
           producer: w.producer,
           lcbo_number: w.lcbo_number,
           region: w.region,
@@ -409,7 +441,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
       wines: wines.length,
       skipped: false,
       errors,
-      sample: wines.slice(0, 3).map((w) => `${w.wine_name} | LCBO#${w.lcbo_number} | ${w.score}${w.score_source ? ` (${w.score_source})` : ""} | $${w.price} | ${w.vintage ?? "NV"}`),
+      sample: wines.slice(0, 3).map((w) => `${w.wine_name} | ${w.score}${w.score_source ? ` (${w.score_source})` : ""} | $${w.price} | ${w.vintage ?? "NV"}`),
     });
   }
 

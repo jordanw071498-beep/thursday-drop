@@ -11,6 +11,8 @@ export const releaseCyclesTable = pgTable("release_cycles", {
   closing_date: text("closing_date"),
   scraped_at: timestamp("scraped_at").notNull().defaultNow(),
   wine_count: integer("wine_count").notNull().default(0),
+  display_order: integer("display_order").notNull().default(0),
+  status: text("status").notNull().default("available"),
 });
 
 export const insertReleaseCycleSchema = createInsertSchema(releaseCyclesTable).omit({ id: true, scraped_at: true });

@@ -10,6 +10,7 @@ interface Wine {
   id: number;
   release_cycle_id: number;
   wine_name: string;
+  wine_key: string | null;
   producer: string | null;
   lcbo_number: string | null;
   region: string | null;
@@ -31,6 +32,8 @@ interface ReleaseCycle {
   closing_date: string | null;
   wine_count: number;
   scraped_at: string;
+  display_order: number;
+  status: string;
 }
 
 interface ProgramWithWines {
@@ -66,6 +69,19 @@ async function fetchActiveReleases(): Promise<ActiveReleasesResponse> {
   return res.json();
 }
 
+function PreviewBadge({ closingDate }: { closingDate: string | null }) {
+  // Only show the date if it looks like an actual date (contains digits)
+  const showDate = closingDate && /\d/.test(closingDate) && !/^preview$/i.test(closingDate.trim());
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium tracking-wide bg-amber-900/30 text-amber-300 border border-amber-700/50 px-2.5 py-1">
+      PREVIEW
+      {showDate && (
+        <span className="text-amber-400/70">· Opens {closingDate}</span>
+      )}
+    </span>
+  );
+}
+
 function ProgramSection({ program, search }: { program: ProgramWithWines; search: string }) {
   const filtered = useMemo(() => {
     if (!search) return program.wines;
@@ -80,20 +96,26 @@ function ProgramSection({ program, search }: { program: ProgramWithWines; search
 
   if (search && filtered.length === 0) return null;
 
-  const lcboUrl = program.wines[0]?.buy_url ?? `https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=${program.release.program_id}&lang=en`;
+  const isPreview = program.release.status === "preview";
+  const lcboUrl =
+    program.wines[0]?.buy_url ??
+    `https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=${program.release.program_id}&lang=en`;
 
   return (
     <AccordionItem value={String(program.release.id)} className="border-border">
       <AccordionTrigger className="hover:no-underline px-0 py-5 group">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full text-left pr-4">
-          <span className="font-serif text-xl text-foreground group-hover:text-primary transition-colors flex-1">
-            {program.release.program_label}
-          </span>
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+            <span className="font-serif text-xl text-foreground group-hover:text-primary transition-colors">
+              {program.release.program_label}
+            </span>
+            {isPreview && <PreviewBadge closingDate={program.release.closing_date} />}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-sm text-muted-foreground">
               {program.wines.length} wine{program.wines.length !== 1 ? "s" : ""}
             </span>
-            {program.release.closing_date && (
+            {!isPreview && program.release.closing_date && (
               <span className="text-xs text-muted-foreground border border-border px-2 py-0.5">
                 Closes: {program.release.closing_date}
               </span>
@@ -112,6 +134,11 @@ function ProgramSection({ program, search }: { program: ProgramWithWines; search
         </div>
       </AccordionTrigger>
       <AccordionContent className="pb-6">
+        {isPreview && (
+          <div className="mb-4 px-4 py-3 bg-amber-900/10 border border-amber-800/30 text-sm text-amber-300/80">
+            This program is not yet open for ordering. You can add wines to your watchlist to receive an alert when it opens.
+          </div>
+        )}
         {search && (
           <p className="text-sm text-muted-foreground mb-4">
             {filtered.length} of {program.wines.length} wine{program.wines.length !== 1 ? "s" : ""} match your search
@@ -170,6 +197,7 @@ export default function Release() {
     if (!data?.programs) return {} as Record<string, ProgramWithWines[]>;
     const result: Record<string, ProgramWithWines[]> = {};
     for (const tab of TABS) {
+      // API already returns programs ordered by display_order asc
       result[tab.id] = data.programs.filter((p) => tab.types.has(p.release.program_type as any));
     }
     return result;
@@ -219,7 +247,6 @@ export default function Release() {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSearch(""); }}>
-            {/* Tab bar */}
             <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent p-0 mb-8 h-auto gap-0">
               {TABS.map((tab) => {
                 const count = (groupedByTab[tab.id] ?? []).reduce((s, p) => s + p.wines.length, 0);

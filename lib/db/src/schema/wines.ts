@@ -7,6 +7,7 @@ export const winesTable = pgTable("wines", {
   id: serial("id").primaryKey(),
   release_cycle_id: integer("release_cycle_id").notNull().references(() => releaseCyclesTable.id),
   wine_name: text("wine_name").notNull(),
+  wine_key: text("wine_key"),
   producer: text("producer"),
   lcbo_number: text("lcbo_number"),
   region: text("region"),
