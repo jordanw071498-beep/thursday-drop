@@ -3,11 +3,19 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function Pricing() {
   const { profile } = useAuth();
   const [, setLocation] = useLocation();
   const createCheckout = useCreateCheckout();
+
+  // Pro users are redirected to account — they don't need this page
+  useEffect(() => {
+    if (profile?.is_pro) {
+      setLocation("/account");
+    }
+  }, [profile?.is_pro, setLocation]);
 
   const handleSubscribe = (plan: "monthly" | "annual") => {
     if (!profile) {
@@ -50,7 +58,6 @@ export default function Pricing() {
               <p className="text-muted-foreground pb-6 border-b border-border">
                 For the casual enthusiast looking to stay informed.
               </p>
-
               <ul className="space-y-4 pt-6">
                 <li className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
@@ -66,7 +73,6 @@ export default function Pricing() {
                 </li>
               </ul>
             </div>
-
             <div className="pt-8">
               <Button
                 variant="outline"
@@ -92,7 +98,6 @@ export default function Pricing() {
               <p className="text-muted-foreground pb-6 border-b border-border">
                 For serious collectors hunting specific allocations.
               </p>
-
               <ul className="space-y-4 pt-6">
                 <li className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-primary" />
@@ -112,35 +117,22 @@ export default function Pricing() {
                 </li>
               </ul>
             </div>
-
             <div className="pt-8 space-y-3">
-              {profile?.is_pro ? (
-                <Button
-                  variant="outline"
-                  className="w-full rounded-none font-bold tracking-widest uppercase h-12 border-primary text-primary"
-                  onClick={() => setLocation("/account")}
-                >
-                  Manage Subscription
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    className="w-full rounded-none font-bold tracking-widest uppercase h-12"
-                    onClick={() => handleSubscribe("monthly")}
-                    disabled={createCheckout.isPending}
-                  >
-                    {createCheckout.isPending ? "Processing…" : "Subscribe — $4.99 / month"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full rounded-none tracking-widest uppercase text-xs hover:text-primary hover:bg-transparent"
-                    onClick={() => handleSubscribe("annual")}
-                    disabled={createCheckout.isPending}
-                  >
-                    Or $49.99 / year&ensp;—&ensp;Save 17%
-                  </Button>
-                </>
-              )}
+              <Button
+                className="w-full rounded-none font-bold tracking-widest uppercase h-12"
+                onClick={() => handleSubscribe("monthly")}
+                disabled={createCheckout.isPending}
+              >
+                {createCheckout.isPending ? "Processing…" : "Subscribe — $4.99 / month"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full rounded-none tracking-widest uppercase text-xs hover:text-primary hover:bg-transparent"
+                onClick={() => handleSubscribe("annual")}
+                disabled={createCheckout.isPending}
+              >
+                Or $49.99 / year&ensp;—&ensp;Save 17%
+              </Button>
             </div>
           </div>
         </div>

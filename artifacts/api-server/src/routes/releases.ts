@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, releaseCyclesTable, winesTable } from "@workspace/db";
+import { logger } from "../lib/logger.js";
 import {
   ListReleasesResponse,
   GetLatestReleaseResponse,
@@ -21,6 +22,38 @@ function serializeWine(w: typeof winesTable.$inferSelect) {
     price: w.price != null ? Number(w.price) : null,
   };
 }
+
+router.get("/releases/active", async (_req, res): Promise<void> => {
+  const now = new Date();
+
+  const allCycles = await db
+    .select()
+    .from(releaseCyclesTable)
+    .orderBy(desc(releaseCyclesTable.scraped_at));
+
+  const activeCycles = allCycles.filter((cycle) => {
+    if (!cycle.closing_date) return true;
+    const closing = new Date(cycle.closing_date);
+    if (isNaN(closing.getTime())) return true; // unparseable date — show it
+    return closing >= now;
+  });
+
+  const programs = await Promise.all(
+    activeCycles.map(async (cycle) => {
+      const wines = await db
+        .select()
+        .from(winesTable)
+        .where(eq(winesTable.release_cycle_id, cycle.id));
+      return {
+        release: serializeRelease(cycle),
+        wines: wines.map(serializeWine),
+      };
+    }),
+  );
+
+  logger.info({ count: programs.length }, "Active releases returned");
+  res.json({ programs });
+});
 
 router.get("/releases", async (_req, res): Promise<void> => {
   const releases = await db

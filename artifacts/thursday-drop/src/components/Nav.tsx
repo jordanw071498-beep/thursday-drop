@@ -32,9 +32,6 @@ export function Nav() {
           <Link href="/history" className="text-sm tracking-widest uppercase hover:text-primary transition-colors">
             History
           </Link>
-          <Link href="/pricing" className="text-sm tracking-widest uppercase hover:text-primary transition-colors">
-            Pricing
-          </Link>
         </div>
 
         <div className="flex items-center gap-6">
@@ -46,7 +43,7 @@ export function Nav() {
               <Link href="/account" className="text-sm tracking-widest uppercase hover:text-primary transition-colors">
                 Account
               </Link>
-              <button 
+              <button
                 onClick={() => signOut()}
                 className="text-sm tracking-widest uppercase hover:text-primary transition-colors"
               >
@@ -58,7 +55,10 @@ export function Nav() {
               <Link href="/login" className="text-sm tracking-widest uppercase hover:text-primary transition-colors">
                 Login
               </Link>
-              <Link href="/signup" className="text-sm tracking-widest uppercase text-background bg-primary px-5 py-2 rounded-sm hover:bg-primary/90 transition-colors">
+              <Link
+                href="/signup"
+                className="text-sm tracking-widest uppercase text-background bg-primary px-5 py-2 rounded-sm hover:bg-primary/90 transition-colors"
+              >
                 Sign up
               </Link>
             </>
