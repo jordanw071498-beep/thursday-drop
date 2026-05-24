@@ -161,6 +161,39 @@ function parseWines($: cheerio.CheerioAPI, programId: string, closingDate: strin
   return wines;
 }
 
+/**
+ * Find the next-page pager link from the current DOM.
+ * Strategy 1: exact aria-label="Page N+1"
+ * Strategy 2: first <a> with a __doPostBack href that appears AFTER the active <span> in the pager
+ */
+function findNextPageLink($: cheerio.CheerioAPI, currentPage: number): string | null {
+  // Strategy 1: aria-label match
+  const exact = $(`a.pagerButtonClass[aria-label="Page ${currentPage + 1}"]`);
+  if (exact.length > 0) {
+    const href = exact.first().attr("href") ?? "";
+    if (href.includes("__doPostBack")) return href;
+  }
+
+  // Strategy 2: any pager anchor that comes after the active span
+  let pastActive = false;
+  let found: string | null = null;
+  $(".pagerButtonClass").each((_, el) => {
+    if (found) return;
+    const tag = (el as { name?: string; type?: string }).name?.toLowerCase() ?? "";
+    if (tag === "span") {
+      pastActive = true;
+      return;
+    }
+    if (pastActive && tag === "a") {
+      const href = $(el).attr("href") ?? "";
+      if (href.includes("__doPostBack")) {
+        found = href;
+      }
+    }
+  });
+  return found;
+}
+
 async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[]; pages: number; errors: string[] }> {
   const url = `${BASE}/Public/OrderProgramProducts.aspx?programId=${info.programId}&lang=en`;
   const wines: ScrapedWine[] = [];
@@ -175,21 +208,21 @@ async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[];
 
   let $ = cheerio.load(html);
   let formFields = extractFormFields($);
-  wines.push(...parseWines($, info.programId, info.closingDate));
+  const page1Wines = parseWines($, info.programId, info.closingDate);
+  wines.push(...page1Wines);
+  logger.info({ programId: info.programId, page: 1, wines: page1Wines.length }, "Page scraped");
 
-  const pagerLinks = $("a.pagerButtonClass[href*='__doPostBack']");
-  const totalPages = pagerLinks.length + 1;
+  let currentPage = 1;
+  const MAX_PAGES = 60;
 
-  for (let p = 2; p <= totalPages; p++) {
+  while (currentPage < MAX_PAGES) {
+    const nextHref = findNextPageLink($, currentPage);
+    if (!nextHref) break;
+
+    const m = nextHref.match(/__doPostBack\('([^']+)','([^']*)'\)/);
+    if (!m) break;
+
     try {
-      const link = pagerLinks.filter((_, el) => $(el).attr("aria-label") === `Page ${p}`);
-      const href = link.attr("href") ?? "";
-      const m = href.match(/__doPostBack\('([^']+)','([^']*)'\)/);
-      if (!m) {
-        logger.warn({ programId: info.programId, page: p }, "No postback found for page");
-        break;
-      }
-
       const body = new URLSearchParams({
         ...formFields,
         __EVENTTARGET: m[1],
@@ -205,16 +238,20 @@ async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[];
         body: body.toString(),
       });
 
-      const $p = cheerio.load(pageHtml);
-      formFields = { ...formFields, ...extractFormFields($p) };
-      wines.push(...parseWines($p, info.programId, info.closingDate));
+      $ = cheerio.load(pageHtml);
+      formFields = { ...formFields, ...extractFormFields($) };
+      const pageWines = parseWines($, info.programId, info.closingDate);
+      wines.push(...pageWines);
+      currentPage++;
+      logger.info({ programId: info.programId, page: currentPage, wines: pageWines.length }, "Page scraped");
     } catch (err: any) {
-      errors.push(`Page ${p}: ${err.message}`);
-      logger.warn({ err, programId: info.programId, page: p }, "Page scrape failed");
+      errors.push(`Page ${currentPage + 1}: ${err.message}`);
+      logger.warn({ err, programId: info.programId, page: currentPage + 1 }, "Page scrape failed");
+      break;
     }
   }
 
-  return { wines, pages: totalPages, errors };
+  return { wines, pages: currentPage, errors };
 }
 
 async function discoverPrograms(): Promise<ProgramInfo[]> {
@@ -290,8 +327,8 @@ async function runMatchingEngine(
   return matched;
 }
 
-export async function runScraper(): Promise<ScraperResult> {
-  logger.info("Scraper run started");
+export async function runScraper(options: { force?: boolean } = {}): Promise<ScraperResult> {
+  logger.info({ force: options.force }, "Scraper run started");
   const summaries: ScraperResult["programs"] = [];
   let totalWines = 0;
 
@@ -306,9 +343,15 @@ export async function runScraper(): Promise<ScraperResult> {
       .limit(1);
 
     if (existing.length > 0) {
-      logger.info({ programId: info.programId }, "Already scraped, skipping");
-      summaries.push({ programId: info.programId, label: info.label, pages: 0, wines: 0, skipped: true, errors: [], sample: [] });
-      continue;
+      if (!options.force) {
+        logger.info({ programId: info.programId }, "Already scraped, skipping");
+        summaries.push({ programId: info.programId, label: info.label, pages: 0, wines: 0, skipped: true, errors: [], sample: [] });
+        continue;
+      }
+      // Force mode: delete existing data before re-scraping
+      logger.info({ programId: info.programId, cycleId: existing[0].id }, "Force mode: deleting existing data");
+      await db.delete(winesTable).where(eq(winesTable.release_cycle_id, existing[0].id));
+      await db.delete(releaseCyclesTable).where(eq(releaseCyclesTable.id, existing[0].id));
     }
 
     const { wines, pages, errors } = await scrapeProgram(info);
@@ -366,7 +409,7 @@ export async function runScraper(): Promise<ScraperResult> {
       wines: wines.length,
       skipped: false,
       errors,
-      sample: wines.slice(0, 5).map((w) => `${w.wine_name} | LCBO#${w.lcbo_number} | ${w.region} | ${w.score}${w.score_source ? ` (${w.score_source})` : ""} | $${w.price} | ${w.vintage ?? "NV"}`),
+      sample: wines.slice(0, 3).map((w) => `${w.wine_name} | LCBO#${w.lcbo_number} | ${w.score}${w.score_source ? ` (${w.score_source})` : ""} | $${w.price} | ${w.vintage ?? "NV"}`),
     });
   }
 

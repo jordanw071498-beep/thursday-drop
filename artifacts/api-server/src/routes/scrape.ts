@@ -6,7 +6,7 @@ const router: IRouter = Router();
 
 function checkCronAuth(req: any): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // no secret configured — allow (dev mode)
+  if (!secret) return true;
   const auth = req.headers.authorization ?? "";
   return auth === `Bearer ${secret}`;
 }
@@ -17,10 +17,11 @@ router.post("/scrape", async (req, res): Promise<void> => {
     return;
   }
 
-  logger.info("Scrape triggered via HTTP");
+  const force = req.query["force"] === "true" || req.body?.force === true;
+  logger.info({ force }, "Scrape triggered via HTTP");
 
   try {
-    const result = await runScraper();
+    const result = await runScraper({ force });
     res.json({
       success: true,
       message: result.message,
