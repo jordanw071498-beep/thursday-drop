@@ -1,0 +1,43 @@
+Perfect corrections. Paste this into Replit AI chat:
+
+"Build the complete scraper with these exact specifications:
+1. Run at TWO times every Thursday — 9am and 10am Eastern — in case the release is delayed. Update vercel.json with two cron entries:
+
+{ "path": "/api/scrape", "schedule": "0 9 * * 4" }
+{ "path": "/api/scrape", "schedule": "0 10 * * 4" }
+
+When the scraper runs a second time, it should detect wines already in the database for that programId and skip them — no duplicates.
+2. Discover all active programs by visiting these exact index pages:
+
+https://www.vintagesshoponline.com/vintages/ClassicsCollection.aspx
+https://www.vintagesshoponline.com/vintages/SpecialOffer.aspx
+https://www.vintagesshoponline.com/vintages/BordeauxFuture.aspx
+
+On each index page, find all links that contain OrderProgramProducts.aspx?programId= and extract the programId values. There may be multiple active programs listed on each page — collect all of them.
+3. For each programId found, fetch the wine table at:
+https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=XXXX&lang=en
+Handle pagination by checking if there is a page 2 link at the bottom of the table. If yes, fetch page 2, then page 3, and so on until there are no more pages. Combine all wines from all pages.
+4. Parse each wine row and extract:
+
+wine_name
+producer (parse from wine name)
+lcbo_number
+region
+region_category (burgundy, bordeaux, rhone, italy, champagne, other)
+vintage (extract 4-digit year from wine name)
+score and score_source
+price
+qty_available
+closing_date
+buy_url (direct link to that specific wine)
+
+5. Before inserting, check if a release_cycle already exists for that programId. If yes, skip inserting wines for that program entirely — it already ran successfully. Only insert if the program is new.
+6. After scraping, run the matching engine against all user watchlist_items using three match types — exact, wine, and producer — and insert queued alerts for any matches found, skipping duplicates.
+7. Protect /api/scrape with CRON_SECRET in the Authorization header.
+8. Build scraper/index.js as a standalone Node.js script that does the same thing and can be run with: node scraper/index.js
+9. Test it live right now against the real LCBO website. Show me:
+
+Which index pages were found and how many programIds were discovered
+For each program, how many pages were scraped and how many wines total
+The first 5 wines from each program with all fields populated
+Any programs or pages that failed to parse and why"

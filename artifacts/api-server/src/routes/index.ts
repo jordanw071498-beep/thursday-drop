@@ -8,6 +8,7 @@ import watchlistRouter from "./watchlist";
 import emailRouter from "./email";
 import stripeRouter from "./stripe";
 import adminRouter from "./admin";
+import scrapeRouter from "./scrape";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use(winesRouter);
 router.use(watchlistRouter);
 router.use(emailRouter);
 router.use(stripeRouter);
+router.use(scrapeRouter);
 router.use(adminRouter);
 
 export default router;
