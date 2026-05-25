@@ -170,22 +170,16 @@ router.post("/admin/test-alert", async (req, res): Promise<void> => {
     return;
   }
 
-  // Send test emails to the admin's own email address
-  const [profile] = await db
-    .select()
-    .from(profilesTable)
-    .where(eq(profilesTable.id, userId))
-    .limit(1);
-
-  if (!profile?.email) {
-    res.status(400).json({ error: "No email on admin profile" });
+  const { email } = req.body ?? {};
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    res.status(400).json({ error: "A valid email address is required" });
     return;
   }
 
   try {
     const emailLib = await import("../lib/email.js");
-    const result = await emailLib.sendTestAlert(profile.email);
-    res.json({ success: true, sent: result.sent, message: `Sent ${result.sent} test emails to ${profile.email}` });
+    const result = await emailLib.sendTestAlert(email);
+    res.json({ success: true, sent: result.sent, message: `Sent ${result.sent} test emails to ${email}` });
   } catch (err: any) {
     logger.error({ err }, "Test alert error");
     res.status(500).json({ success: false, error: err.message });

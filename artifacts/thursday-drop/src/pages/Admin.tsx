@@ -96,6 +96,7 @@ export default function Admin() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
 
   const alerts = alertsData?.alerts ?? [];
   const users = usersData?.users ?? [];
@@ -131,7 +132,11 @@ export default function Admin() {
   };
 
   const handleTestAlert = () => {
-    sendTestAlert.mutate(undefined, {
+    if (!testEmail.includes("@")) {
+      toast({ title: "Enter a valid email address first", variant: "destructive" });
+      return;
+    }
+    sendTestAlert.mutate({ email: testEmail }, {
       onSuccess: (data: any) => {
         toast({ title: "Test Emails Sent", description: data?.message ?? "Check your inbox." });
       },
@@ -273,17 +278,21 @@ export default function Admin() {
                 <div className="bg-card border border-border p-6 space-y-4">
                   <div>
                     <h3 className="font-serif text-lg mb-1">Test Emails</h3>
-                    <p className="text-muted-foreground text-sm">Send both email templates to your account email to preview them.</p>
+                    <p className="text-muted-foreground text-sm">Send both email templates to any address to preview them.</p>
                   </div>
-                  <div className="font-mono text-sm text-muted-foreground">
-                    Sends 2 demo emails
-                  </div>
+                  <Input
+                    type="email"
+                    placeholder="your@email.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="bg-background rounded-none border-border text-sm"
+                  />
                   <Button
                     onClick={handleTestAlert}
-                    disabled={sendTestAlert.isPending}
+                    disabled={sendTestAlert.isPending || !testEmail}
                     size="sm"
                     variant="outline"
-                    className="rounded-none tracking-widest uppercase w-full border-amber-700 text-amber-400 hover:bg-amber-900/20"
+                    className="rounded-none tracking-widest uppercase w-full border-amber-700 text-amber-400 hover:bg-amber-900/20 disabled:opacity-40"
                   >
                     {sendTestAlert.isPending ? "Sending..." : "Send Test Email"}
                   </Button>
