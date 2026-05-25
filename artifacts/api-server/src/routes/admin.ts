@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, count } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 import {
   db,
   profilesTable,
@@ -52,13 +52,8 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     .from(profilesTable)
     .where(eq(profilesTable.is_pro, true));
 
-  const [totalWines] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(winesTable);
-
-  const [totalReleases] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(releaseCyclesTable);
+  const [totalWines] = await db.select({ count: sql<number>`count(*)` }).from(winesTable);
+  const [totalReleases] = await db.select({ count: sql<number>`count(*)` }).from(releaseCyclesTable);
 
   const [pendingAlerts] = await db
     .select({ count: sql<number>`count(*)` })
@@ -79,6 +74,44 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   );
 });
 
+router.get("/admin/alerts", async (req, res): Promise<void> => {
+  const userId = getAdminUserId(req);
+  if (!userId || !(await isAdmin(userId))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const rows = await db
+    .select({
+      id: alertsTable.id,
+      wine_name: alertsTable.wine_name,
+      user_email: profilesTable.email,
+      program_label: releaseCyclesTable.program_label,
+      release_opens_at: releaseCyclesTable.release_opens_at,
+      announcement_alert_sent: alertsTable.announcement_alert_sent,
+      sent_at: alertsTable.sent_at,
+      morning_alert_sent: alertsTable.morning_alert_sent,
+      morning_sent_at: alertsTable.morning_sent_at,
+      created_at: alertsTable.created_at,
+    })
+    .from(alertsTable)
+    .innerJoin(winesTable, eq(alertsTable.wine_id, winesTable.id))
+    .innerJoin(releaseCyclesTable, eq(winesTable.release_cycle_id, releaseCyclesTable.id))
+    .innerJoin(profilesTable, eq(alertsTable.user_id, profilesTable.id))
+    .orderBy(desc(alertsTable.created_at))
+    .limit(100);
+
+  res.json({
+    alerts: rows.map((r) => ({
+      ...r,
+      release_opens_at: r.release_opens_at?.toISOString() ?? null,
+      sent_at: r.sent_at?.toISOString() ?? null,
+      morning_sent_at: r.morning_sent_at?.toISOString() ?? null,
+      created_at: r.created_at.toISOString(),
+    })),
+  });
+});
+
 router.post("/admin/scrape", async (req, res): Promise<void> => {
   const userId = getAdminUserId(req);
   if (!userId || !(await isAdmin(userId))) {
@@ -89,23 +122,10 @@ router.post("/admin/scrape", async (req, res): Promise<void> => {
   try {
     const scraper = await import("../lib/scraper.js");
     const result = await scraper.runScraper();
-
-    res.json(
-      TriggerScrapeResponse.parse({
-        success: true,
-        message: result.message,
-        wines_found: result.wines_found,
-      }),
-    );
+    res.json(TriggerScrapeResponse.parse({ success: true, message: result.message, wines_found: result.wines_found }));
   } catch (err) {
     logger.error({ err }, "Scraper error");
-    res.json(
-      TriggerScrapeResponse.parse({
-        success: false,
-        message: "Scraper failed. Check logs.",
-        wines_found: 0,
-      }),
-    );
+    res.json(TriggerScrapeResponse.parse({ success: false, message: "Scraper failed. Check logs.", wines_found: 0 }));
   }
 });
 
@@ -119,23 +139,56 @@ router.post("/admin/send-alerts", async (req, res): Promise<void> => {
   try {
     const emailLib = await import("../lib/email.js");
     const result = await emailLib.sendPendingAlerts();
-
-    res.json(
-      SendAlertsResponse.parse({
-        success: true,
-        sent: result.sent,
-        message: `Sent ${result.sent} alerts`,
-      }),
-    );
+    res.json(SendAlertsResponse.parse({ success: true, sent: result.sent, message: `Sent ${result.sent} announcement alerts` }));
   } catch (err) {
     logger.error({ err }, "Send alerts error");
-    res.json(
-      SendAlertsResponse.parse({
-        success: false,
-        sent: 0,
-        message: "Failed to send alerts",
-      }),
-    );
+    res.json(SendAlertsResponse.parse({ success: false, sent: 0, message: "Failed to send alerts" }));
+  }
+});
+
+router.post("/admin/send-morning-alerts", async (req, res): Promise<void> => {
+  const userId = getAdminUserId(req);
+  if (!userId || !(await isAdmin(userId))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const emailLib = await import("../lib/email.js");
+    const result = await emailLib.sendMorningAlerts();
+    res.json({ success: true, sent: result.sent, message: `Sent ${result.sent} morning alerts` });
+  } catch (err) {
+    logger.error({ err }, "Send morning alerts error");
+    res.json({ success: false, sent: 0, message: "Failed to send morning alerts" });
+  }
+});
+
+router.post("/admin/test-alert", async (req, res): Promise<void> => {
+  const userId = getAdminUserId(req);
+  if (!userId || !(await isAdmin(userId))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  // Send test emails to the admin's own email address
+  const [profile] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.id, userId))
+    .limit(1);
+
+  if (!profile?.email) {
+    res.status(400).json({ error: "No email on admin profile" });
+    return;
+  }
+
+  try {
+    const emailLib = await import("../lib/email.js");
+    const result = await emailLib.sendTestAlert(profile.email);
+    res.json({ success: true, sent: result.sent, message: `Sent ${result.sent} test emails to ${profile.email}` });
+  } catch (err: any) {
+    logger.error({ err }, "Test alert error");
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -154,27 +207,11 @@ router.post("/admin/send-picks", async (req, res): Promise<void> => {
 
   try {
     const emailLib = await import("../lib/email.js");
-    const result = await emailLib.sendWeeklyPicks(
-      parsed.data.subject,
-      parsed.data.body,
-    );
-
-    res.json(
-      SendWeeklyPicksResponse.parse({
-        success: true,
-        sent: result.sent,
-        message: `Sent to ${result.sent} Pro subscribers`,
-      }),
-    );
+    const result = await emailLib.sendWeeklyPicks(parsed.data.subject, parsed.data.body);
+    res.json(SendWeeklyPicksResponse.parse({ success: true, sent: result.sent, message: `Sent to ${result.sent} Pro subscribers` }));
   } catch (err) {
     logger.error({ err }, "Send weekly picks error");
-    res.json(
-      SendWeeklyPicksResponse.parse({
-        success: false,
-        sent: 0,
-        message: "Failed to send weekly picks",
-      }),
-    );
+    res.json(SendWeeklyPicksResponse.parse({ success: false, sent: 0, message: "Failed to send weekly picks" }));
   }
 });
 

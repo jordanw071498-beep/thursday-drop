@@ -1,0 +1,25 @@
+Update the alert system with this exact two-alert flow:
+Alert 1 — ANNOUNCEMENT ALERT
+Triggered: Immediately when the scraper finds a new wine that matches a user's watchlist — whether it shows as PREVIEW or AVAILABLE
+Timing: Sent right after the scraper runs (Thursday 9am or 10am)
+Subject: '[Wine Name] just appeared on Vintages'
+Body: A wine on your watchlist has just been posted to LCBO Vintages. Here are the details: wine name, vintage, producer, region, price, critic score, quantity available, release date, closing date. Direct link to the program on Vintages. Message: 'Ordering opens [release date] at 8:30am — be ready.'
+Alert 2 — MORNING BEFORE ALERT
+Triggered: The morning before the wine officially becomes available for ordering
+Timing: Sent at 7:00am Eastern on the Thursday morning the wine opens for ordering
+Subject: 'Reminder — [Wine Name] is available for ordering tomorrow at 8:30am'
+Wait — actually this alert sends the MORNING OF the release day at 7am, 90 minutes before the 8:30am ordering window opens
+Subject: '[Wine Name] opens for ordering in 90 minutes — act fast'
+Body: Your watched wine opens for ordering on LCBO Vintages at 8:30am this morning. Price, score, quantity available, direct buy link. Quantities are limited — have your LCBO account ready.
+Implementation:
+
+Add a field called release_opens_at to release_cycles storing the exact datetime ordering opens — default to Thursday 8:30am Eastern of the release week
+Add a field called announcement_alert_sent and morning_alert_sent as booleans on the alerts table to track which alerts have been sent
+Alert 1 sends immediately after scraping via Resend
+Alert 2 requires a second cron job that runs every Thursday at 7:00am Eastern — check all alerts where morning_alert_sent is false and release_opens_at is today — send those emails via Resend
+Add this second cron to vercel.json: { "path": "/api/send-morning-alerts", "schedule": "0 7 * * 4" }
+Never send duplicate alerts — check announcement_alert_sent and morning_alert_sent before sending
+Update the admin dashboard to show both alert types and their sent status for each matched wine
+
+Also add a third cron that runs Thursday at 8:00am as a safety backup for the morning alert in case the 7am run missed anything: { "path": "/api/send-morning-alerts", "schedule": "0 8 * * 4" }
+Wire everything up to Resend and send a test alert to my email to confirm the email template looks correct.

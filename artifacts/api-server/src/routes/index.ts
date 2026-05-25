@@ -9,6 +9,7 @@ import emailRouter from "./email";
 import stripeRouter from "./stripe";
 import adminRouter from "./admin";
 import scrapeRouter from "./scrape";
+import morningAlertsRouter from "./morning-alerts";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(emailRouter);
 router.use(stripeRouter);
 router.use(scrapeRouter);
 router.use(adminRouter);
+router.use(morningAlertsRouter);
 
 export default router;

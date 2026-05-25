@@ -102,19 +102,29 @@ function extractProducer(wineName: string): string | null {
   return words.slice(0, Math.min(2, words.length)).join(" ") || null;
 }
 
-/**
- * Normalize a wine name into a stable lookup key.
- * Lowercases, strips accents/diacritics, removes punctuation, collapses whitespace.
- * e.g. "Château Sassicaia Bolgheri 2019" → "chateau sassicaia bolgheri 2019"
- */
 function generateWineKey(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")  // strip diacritics
-    .replace(/[^a-z0-9\s]/g, "")      // remove punctuation
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Compute the Thursday of this week (or today if Thursday) at 8:30am Eastern.
+ * 8:30am EST = 13:30 UTC. Returns null for preview programs.
+ */
+function computeReleaseOpensAt(status: "preview" | "available"): Date | null {
+  if (status !== "available") return null;
+  const now = new Date();
+  const utcDay = now.getUTCDay(); // 0=Sun, 1=Mon, ..., 4=Thu
+  const daysToThursday = utcDay <= 4 ? 4 - utcDay : 11 - utcDay;
+  const thursday = new Date(now);
+  thursday.setUTCDate(thursday.getUTCDate() + daysToThursday);
+  thursday.setUTCHours(13, 30, 0, 0); // 8:30am EST = 13:30 UTC
+  return thursday;
 }
 
 function extractFormFields($: cheerio.CheerioAPI): Record<string, string> {
@@ -133,11 +143,7 @@ function parseWines($: cheerio.CheerioAPI, programId: string, closingDate: strin
 
   $("table.myList tr").each((_, row) => {
     const $row = $(row);
-
-    if ($row.hasClass("group")) {
-      currentGroup = $row.text().trim();
-      return;
-    }
+    if ($row.hasClass("group")) { currentGroup = $row.text().trim(); return; }
     if (!$row.hasClass("item") && !$row.hasClass("itemAlt")) return;
 
     const tds = $row.find("td");
@@ -155,37 +161,26 @@ function parseWines($: cheerio.CheerioAPI, programId: string, closingDate: strin
     if (!priceRaw) priceRaw = $(tds[tds.length - 1]).text().trim();
     const price = priceRaw.replace(/[^0-9.]/g, "") || null;
 
-    const vintage = extractVintage(wineName);
-    const producer = extractProducer(wineName);
-    const region_category = categorizeRegion(region ?? "", currentGroup);
-    const buy_url = `https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=${programId}&lang=en`;
-    const wine_key = generateWineKey(wineName);
-
     wines.push({
       wine_name: wineName,
-      wine_key,
-      producer,
+      wine_key: generateWineKey(wineName),
+      producer: extractProducer(wineName),
       lcbo_number: lcboNumber,
       region,
-      region_category,
-      vintage,
+      region_category: categorizeRegion(region ?? "", currentGroup),
+      vintage: extractVintage(wineName),
       score,
       score_source,
       price,
       qty_available: null,
       closing_date: closingDate,
-      buy_url,
+      buy_url: `https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=${programId}&lang=en`,
     });
   });
 
   return wines;
 }
 
-/**
- * Find the next-page pager link from the current DOM.
- * Strategy 1: exact aria-label="Page N+1"
- * Strategy 2: first <a> with a __doPostBack href that appears AFTER the active <span> in the pager
- */
 function findNextPageLink($: cheerio.CheerioAPI, currentPage: number): string | null {
   const exact = $(`a.pagerButtonClass[aria-label="Page ${currentPage + 1}"]`);
   if (exact.length > 0) {
@@ -198,15 +193,10 @@ function findNextPageLink($: cheerio.CheerioAPI, currentPage: number): string | 
   $(".pagerButtonClass").each((_, el) => {
     if (found) return;
     const tag = (el as { name?: string }).name?.toLowerCase() ?? "";
-    if (tag === "span") {
-      pastActive = true;
-      return;
-    }
+    if (tag === "span") { pastActive = true; return; }
     if (pastActive && tag === "a") {
       const href = $(el).attr("href") ?? "";
-      if (href.includes("__doPostBack")) {
-        found = href;
-      }
+      if (href.includes("__doPostBack")) found = href;
     }
   });
   return found;
@@ -226,17 +216,14 @@ async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[];
 
   let $ = cheerio.load(html);
   let formFields = extractFormFields($);
-  const page1Wines = parseWines($, info.programId, info.closingDate);
-  wines.push(...page1Wines);
-  logger.info({ programId: info.programId, page: 1, wines: page1Wines.length }, "Page scraped");
+  const p1 = parseWines($, info.programId, info.closingDate);
+  wines.push(...p1);
+  logger.info({ programId: info.programId, page: 1, wines: p1.length }, "Page scraped");
 
   let currentPage = 1;
-  const MAX_PAGES = 60;
-
-  while (currentPage < MAX_PAGES) {
+  while (currentPage < 60) {
     const nextHref = findNextPageLink($, currentPage);
     if (!nextHref) break;
-
     const m = nextHref.match(/__doPostBack\('([^']+)','([^']*)'\)/);
     if (!m) break;
 
@@ -246,16 +233,11 @@ async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[];
         __EVENTTARGET: m[1],
         __EVENTARGUMENT: m[2],
       });
-
       const pageHtml = await fetchHtml(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Referer: url,
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: url },
         body: body.toString(),
       });
-
       $ = cheerio.load(pageHtml);
       formFields = { ...formFields, ...extractFormFields($) };
       const pageWines = parseWines($, info.programId, info.closingDate);
@@ -291,14 +273,11 @@ async function discoverPrograms(): Promise<ProgramInfo[]> {
         const $row = $(el).closest("tr");
         const rowText = $row.text().toUpperCase();
         const status: "preview" | "available" = rowText.includes("PREVIEW") ? "preview" : "available";
-
-        const label = $(el).text().trim();
-        // Second cell often holds the closing/ordering date
         const closingDate = $row.find("td").eq(1).text().trim() || null;
 
         programs.push({
           programId: m[1],
-          label,
+          label: $(el).text().trim(),
           type: page.type,
           closingDate,
           displayOrder: position++,
@@ -324,7 +303,6 @@ async function runMatchingEngine(
   for (const wine of insertedWines) {
     for (const item of watchlistItems) {
       let matches = false;
-
       if (item.match_type === "producer") {
         if (wine.producer && item.producer) {
           matches =
@@ -361,6 +339,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
   logger.info({ force: options.force }, "Scraper run started");
   const summaries: ScraperResult["programs"] = [];
   let totalWines = 0;
+  let totalAlertsMatched = 0;
 
   const programs = await discoverPrograms();
   logger.info({ count: programs.length }, "Programs discovered");
@@ -391,6 +370,8 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
       continue;
     }
 
+    const releaseOpensAt = computeReleaseOpensAt(info.status);
+
     const [cycle] = await db
       .insert(releaseCyclesTable)
       .values({
@@ -401,6 +382,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
         wine_count: wines.length,
         display_order: info.displayOrder,
         status: info.status,
+        release_opens_at: releaseOpensAt,
       })
       .returning();
 
@@ -431,6 +413,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
     }
 
     const alertsQueued = await runMatchingEngine(inserted);
+    totalAlertsMatched += alertsQueued;
     logger.info({ programId: info.programId, alertsQueued }, "Matching engine done");
 
     totalWines += wines.length;
@@ -441,11 +424,22 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
       wines: wines.length,
       skipped: false,
       errors,
-      sample: wines.slice(0, 3).map((w) => `${w.wine_name} | ${w.score}${w.score_source ? ` (${w.score_source})` : ""} | $${w.price} | ${w.vintage ?? "NV"}`),
+      sample: wines.slice(0, 3).map((w) => `${w.wine_name} | ${w.score ?? "—"} pts | $${w.price ?? "—"} | ${w.vintage ?? "NV"}`),
     });
   }
 
-  logger.info({ totalWines, programs: programs.length }, "Scraper run complete");
+  // Send announcement alerts for all newly matched wines
+  if (totalAlertsMatched > 0) {
+    try {
+      const { sendPendingAlerts } = await import("./email.js");
+      const { sent } = await sendPendingAlerts();
+      logger.info({ sent }, "Announcement alerts dispatched after scrape");
+    } catch (err) {
+      logger.error({ err }, "Failed to send announcement alerts after scrape");
+    }
+  }
+
+  logger.info({ totalWines, programs: programs.length, totalAlertsMatched }, "Scraper run complete");
   return {
     message: `Scraped ${programs.length} programs, inserted ${totalWines} wines`,
     wines_found: totalWines,

@@ -13,6 +13,8 @@ export const releaseCyclesTable = pgTable("release_cycles", {
   wine_count: integer("wine_count").notNull().default(0),
   display_order: integer("display_order").notNull().default(0),
   status: text("status").notNull().default("available"),
+  // Exact datetime ordering opens — Thursday 8:30am Eastern
+  release_opens_at: timestamp("release_opens_at"),
 });
 
 export const insertReleaseCycleSchema = createInsertSchema(releaseCyclesTable).omit({ id: true, scraped_at: true });
