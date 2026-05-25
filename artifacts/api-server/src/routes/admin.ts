@@ -17,27 +17,19 @@ import {
   SendWeeklyPicksResponse,
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
+import { getAuthProfile } from "../lib/auth.js";
 
 const router: IRouter = Router();
 
-function getAdminUserId(req: any): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return null;
-  return authHeader.replace("Bearer ", "") || null;
-}
-
-async function isAdmin(userId: string): Promise<boolean> {
-  const [profile] = await db
-    .select()
-    .from(profilesTable)
-    .where(eq(profilesTable.id, userId))
-    .limit(1);
-  return profile?.is_admin ?? false;
+/** Looks up by session_token (Bearer header) and checks is_admin. Returns profile or null. */
+async function requireAdmin(req: any) {
+  const profile = await getAuthProfile(req);
+  if (!profile?.is_admin) return null;
+  return profile;
 }
 
 router.get("/admin/stats", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -75,8 +67,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/alerts", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -113,8 +104,7 @@ router.get("/admin/alerts", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/scrape", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -130,8 +120,7 @@ router.post("/admin/scrape", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/send-alerts", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -147,8 +136,7 @@ router.post("/admin/send-alerts", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/send-morning-alerts", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -164,8 +152,7 @@ router.post("/admin/send-morning-alerts", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/test-alert", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -179,7 +166,13 @@ router.post("/admin/test-alert", async (req, res): Promise<void> => {
   try {
     const emailLib = await import("../lib/email.js");
     const result = await emailLib.sendTestAlert(email);
-    res.json({ success: true, sent: result.sent, message: `Sent ${result.sent} test emails to ${email}` });
+    logger.info({ resendResponses: result.responses }, "Test alert Resend responses");
+    res.json({
+      success: result.sent > 0,
+      sent: result.sent,
+      message: `Sent ${result.sent} test emails to ${email}`,
+      resend_responses: result.responses,
+    });
   } catch (err: any) {
     logger.error({ err }, "Test alert error");
     res.status(500).json({ success: false, error: err.message });
@@ -187,8 +180,7 @@ router.post("/admin/test-alert", async (req, res): Promise<void> => {
 });
 
 router.get("/admin/users", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -211,8 +203,7 @@ router.get("/admin/users", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/users/:id/toggle-pro", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -239,8 +230,7 @@ router.post("/admin/users/:id/toggle-pro", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/send-picks", async (req, res): Promise<void> => {
-  const userId = getAdminUserId(req);
-  if (!userId || !(await isAdmin(userId))) {
+  if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }

@@ -16,8 +16,8 @@ function getResendClient() {
   return new Resend(apiKey);
 }
 
-const FROM_ALERTS = "Thursday Drop <alerts@thursdaydrop.ca>";
-const FROM_PICKS = "Thursday Drop <picks@thursdaydrop.ca>";
+const FROM_ALERTS = "Thursday Drop <onboarding@resend.dev>";
+const FROM_PICKS = "Thursday Drop <onboarding@resend.dev>";
 
 // ─── Shared email layout helpers ─────────────────────────────────────────────
 
@@ -265,7 +265,7 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
 
 // ─── Test alert ───────────────────────────────────────────────────────────────
 
-export async function sendTestAlert(toEmail: string): Promise<{ sent: number }> {
+export async function sendTestAlert(toEmail: string): Promise<{ sent: number; responses: unknown[] }> {
   const resend = getResendClient();
   const demoWine = {
     wine_name: "Château Margaux 2018",
@@ -281,21 +281,30 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number }> 
   const demoOpensAt = new Date();
   demoOpensAt.setUTCHours(13, 30, 0, 0);
 
-  await resend.emails.send({
+  const responses: unknown[] = [];
+
+  logger.info({ to: toEmail, from: FROM_ALERTS }, "Sending test announcement email");
+  const r1 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
     subject: `[TEST] ${demoWine.wine_name} just appeared on Vintages`,
     html: buildAnnouncementHtml(demoWine, demoOpensAt),
   });
+  logger.info({ resendResponse: r1 }, "Test announcement email Resend response");
+  responses.push(r1);
 
-  await resend.emails.send({
+  logger.info({ to: toEmail, from: FROM_ALERTS }, "Sending test morning email");
+  const r2 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
     subject: `[TEST] ${demoWine.wine_name} opens for ordering in 90 minutes — act fast`,
     html: buildMorningHtml(demoWine),
   });
+  logger.info({ resendResponse: r2 }, "Test morning email Resend response");
+  responses.push(r2);
 
-  return { sent: 2 };
+  const sent = responses.filter((r: any) => r?.data?.id && !r?.error).length;
+  return { sent, responses };
 }
 
 // ─── Weekly Picks ─────────────────────────────────────────────────────────────

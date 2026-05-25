@@ -36,4 +36,11 @@ app.listen(port, (err) => {
   }
   logger.info({ port }, "Server listening");
   logger.info("Cron jobs scheduled: Thursday 9am and 10am Eastern");
+
+  const resendKey = process.env.RESEND_API_KEY;
+  if (resendKey) {
+    logger.info({ keyPrefix: resendKey.slice(0, 8) + "..." }, "RESEND_API_KEY loaded");
+  } else {
+    logger.warn("RESEND_API_KEY is NOT set — emails will fail");
+  }
 });
