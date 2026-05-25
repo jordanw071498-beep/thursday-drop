@@ -143,7 +143,7 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
                 <div className="flex flex-col">
                   <span>
                     {wine.wine_name}
-                    {wine.vintage && (
+                    {wine.vintage && !wine.wine_name.trim().endsWith(wine.vintage.trim()) && (
                       <span className="ml-2 text-primary font-mono text-sm font-semibold">{wine.vintage}</span>
                     )}
                   </span>
