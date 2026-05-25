@@ -63,6 +63,11 @@ function formatReleaseDate(date: Date | null): string {
 
 // ─── Announcement Alert ───────────────────────────────────────────────────────
 
+function programBadge(label: string | null | undefined): string {
+  if (!label) return "";
+  return `<p style="display:inline-block;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#1a040a;background:#B8860B;padding:3px 10px;margin:0 0 20px;">${label}</p>`;
+}
+
 function buildAnnouncementHtml(
   wine: {
     wine_name: string;
@@ -74,6 +79,7 @@ function buildAnnouncementHtml(
     qty_available: number | null;
     closing_date: string | null;
     buy_url: string | null;
+    program_label?: string | null;
   },
   releaseOpensAt: Date | null,
 ): string {
@@ -82,6 +88,7 @@ function buildAnnouncementHtml(
   const releaseDate = formatReleaseDate(releaseOpensAt);
 
   const inner = `
+    ${programBadge(wine.program_label)}
     <h1 style="color:#F2EBD9;font-size:22px;line-height:1.35;margin:0 0 8px;font-family:Georgia,serif;">${wine.wine_name}</h1>
     ${wine.producer ? `<p style="color:#B8860B;font-size:13px;margin:0 0 28px;font-family:sans-serif;">${wine.producer}</p>` : `<div style="margin-bottom:28px;"></div>`}
 
@@ -145,7 +152,10 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
         from: FROM_ALERTS,
         to: profile.email,
         subject: `${wine.wine_name} just appeared on Vintages`,
-        html: buildAnnouncementHtml(wine, cycle?.release_opens_at ?? null),
+        html: buildAnnouncementHtml(
+          { ...wine, program_label: cycle?.program_label ?? null },
+          cycle?.release_opens_at ?? null,
+        ),
       });
 
       await db
@@ -177,12 +187,14 @@ function buildMorningHtml(wine: {
   price: unknown;
   qty_available: number | null;
   buy_url: string | null;
+  program_label?: string | null;
 }): string {
   const buyUrl =
     wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
 
   const inner = `
-    <p style="color:#B8860B;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;font-family:sans-serif;margin:0 0 20px;">90-Minute Reminder</p>
+    <p style="color:#B8860B;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;font-family:sans-serif;margin:0 0 16px;">90-Minute Reminder</p>
+    ${programBadge(wine.program_label)}
     <h1 style="color:#F2EBD9;font-size:22px;line-height:1.35;margin:0 0 8px;font-family:Georgia,serif;">${wine.wine_name}</h1>
     ${wine.producer ? `<p style="color:#B8860B;font-size:13px;margin:0 0 28px;font-family:sans-serif;">${wine.producer}</p>` : `<div style="margin-bottom:28px;"></div>`}
 
@@ -245,7 +257,7 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
         from: FROM_ALERTS,
         to: profile.email,
         subject: `${wine.wine_name} opens for ordering in 90 minutes — act fast`,
-        html: buildMorningHtml(wine),
+        html: buildMorningHtml({ ...wine, program_label: row.cycle?.program_label ?? null }),
       });
 
       await db
@@ -277,6 +289,7 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
     qty_available: 24,
     closing_date: "June 5, 2026",
     buy_url: "https://www.vintagesshoponline.com",
+    program_label: "Cellar Collection: Monthly Features",
   };
   const demoOpensAt = new Date();
   demoOpensAt.setUTCHours(13, 30, 0, 0);
