@@ -21,6 +21,23 @@ function checkCronAuth(req: any): boolean {
  *   7am ET Thu:  0 12 * * 4   (UTC)
  *   8am ET Thu:  0 13 * * 4   (UTC)
  */
+// GET variant used by Vercel Cron (Vercel sends Authorization: Bearer <CRON_SECRET>)
+router.get("/cron/morning-alerts", async (req, res): Promise<void> => {
+  if (!checkCronAuth(req)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  logger.info("Morning alerts cron triggered via GET");
+  try {
+    const { sent } = await sendMorningAlerts();
+    logger.info({ sent }, "Morning alerts dispatched");
+    res.json({ success: true, sent, message: `Sent ${sent} morning alerts` });
+  } catch (err: any) {
+    logger.error({ err }, "Morning alerts cron failed");
+    res.status(500).json({ success: false, sent: 0, error: err.message });
+  }
+});
+
 router.post("/send-morning-alerts", async (req, res): Promise<void> => {
   if (!checkCronAuth(req)) {
     res.status(401).json({ error: "Unauthorized" });

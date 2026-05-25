@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm run typecheck:libs && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/thursday-drop run build",
+  "outputDirectory": "artifacts/thursday-drop/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs22.x",
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/scrape",
+      "schedule": "0 13 * * 4"
+    },
+    {
+      "path": "/api/cron/scrape",
+      "schedule": "0 14 * * 4"
+    },
+    {
+      "path": "/api/cron/morning-alerts",
+      "schedule": "0 11 * * 4"
+    },
+    {
+      "path": "/api/cron/morning-alerts",
+      "schedule": "0 12 * * 4"
+    }
+  ]
+}

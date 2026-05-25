@@ -11,6 +11,22 @@ function checkCronAuth(req: any): boolean {
   return auth === `Bearer ${secret}`;
 }
 
+// GET variant used by Vercel Cron (Vercel sends Authorization: Bearer <CRON_SECRET>)
+router.get("/cron/scrape", async (req, res): Promise<void> => {
+  if (!checkCronAuth(req)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  logger.info("Cron scrape triggered via GET");
+  try {
+    const result = await runScraper({ force: false });
+    res.json({ success: true, message: result.message, wines_found: result.wines_found });
+  } catch (err: any) {
+    logger.error({ err }, "Cron scrape failed");
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post("/scrape", async (req, res): Promise<void> => {
   if (!checkCronAuth(req)) {
     res.status(401).json({ error: "Unauthorized" });
