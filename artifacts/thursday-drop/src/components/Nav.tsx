@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const NAV_LINK =
   "text-xs font-light tracking-[0.15em] uppercase text-muted-foreground hover:text-primary transition-colors whitespace-nowrap";
@@ -22,6 +23,7 @@ export function Nav() {
   const { profile, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -63,31 +65,25 @@ export function Nav() {
           {/* Right: User links — desktop only */}
           <div className="hidden md:flex flex-none items-center">
             {profile ? (
-              <div className="flex items-center">
-                <div className="w-px h-4 bg-border/60 mr-6" />
-                <div className="flex items-center gap-6">
-                  <NavLink href="/watchlist">Watchlist</NavLink>
-                  <NavLink href="/account">Account</NavLink>
-                  <button
-                    onClick={() => signOut()}
-                    className={NAV_LINK}
-                  >
-                    Sign out
-                  </button>
-                </div>
+              <div className="flex items-center gap-6">
+                <NavLink href="/watchlist">Watchlist</NavLink>
+                <NavLink href="/account">Account</NavLink>
+                <button
+                  onClick={() => setShowSignOutConfirm(true)}
+                  className={NAV_LINK}
+                >
+                  Sign out
+                </button>
               </div>
             ) : (
-              <div className="flex items-center">
-                <div className="w-px h-4 bg-border/60 mr-6" />
-                <div className="flex items-center gap-6">
-                  <NavLink href="/login">Login</NavLink>
-                  <Link
-                    href="/signup"
-                    className="text-xs font-light tracking-[0.15em] uppercase text-background bg-primary px-4 py-2 hover:bg-primary/90 transition-colors whitespace-nowrap"
-                  >
-                    Sign up
-                  </Link>
-                </div>
+              <div className="flex items-center gap-6">
+                <NavLink href="/login">Login</NavLink>
+                <Link
+                  href="/signup"
+                  className="text-xs font-light tracking-[0.15em] uppercase text-background bg-primary px-4 py-2 hover:bg-primary/90 transition-colors whitespace-nowrap"
+                >
+                  Sign up
+                </Link>
               </div>
             )}
           </div>
@@ -116,7 +112,7 @@ export function Nav() {
                   <MobileNavLink href="/watchlist" onClose={() => setMenuOpen(false)}>Watchlist</MobileNavLink>
                   <MobileNavLink href="/account" onClose={() => setMenuOpen(false)}>Account</MobileNavLink>
                   <button
-                    onClick={() => { signOut(); setMenuOpen(false); }}
+                    onClick={() => { setMenuOpen(false); setShowSignOutConfirm(true); }}
                     className={NAV_LINK}
                   >
                     Sign out
@@ -135,6 +131,36 @@ export function Nav() {
 
       {/* Spacer so content doesn't hide under fixed nav */}
       <div className="h-[60px]" />
+
+      {/* Sign-out confirmation modal */}
+      {showSignOutConfirm && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSignOutConfirm(false); }}
+        >
+          <div className="bg-background border border-border p-8 max-w-sm w-full mx-4 space-y-6">
+            <div className="space-y-2">
+              <h3 className="font-serif text-2xl text-foreground">Sign out?</h3>
+              <p className="text-muted-foreground text-sm">Are you sure you want to sign out of Thursday Drop?</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 rounded-none font-bold tracking-widest uppercase"
+                onClick={() => { signOut(); setShowSignOutConfirm(false); }}
+              >
+                Yes, Sign Out
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-none font-bold tracking-widest uppercase border-border"
+                onClick={() => setShowSignOutConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

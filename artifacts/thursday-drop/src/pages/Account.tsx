@@ -11,6 +11,7 @@ export default function Account() {
   const search = useSearch();
   const [showSuccess, setShowSuccess] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: subInfo, refetch: refetchSubInfo } = useGetSubscriptionInfo();
@@ -180,7 +181,7 @@ export default function Account() {
             </div>
           )}
 
-          {/* Upgrade prompt for Free users — inline subscribe, no /pricing redirect */}
+          {/* Upgrade prompt for Free users */}
           {!profile?.is_pro && (
             <div className="bg-card border border-primary/30 p-8 space-y-6">
               <div>
@@ -190,54 +191,75 @@ export default function Account() {
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-6">
+              {/* Equal-height cards: items-stretch + flex-col on each card */}
+              <div className="grid sm:grid-cols-2 gap-6 items-stretch">
                 {/* Monthly */}
-                <div className="border border-primary p-6 space-y-4 relative overflow-hidden">
+                <div className="border border-primary p-6 flex flex-col relative overflow-hidden">
                   <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase py-1 px-3">
                     Popular
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground uppercase tracking-widest">Monthly</p>
-                    <p className="text-3xl font-light mt-1">
-                      $4.99 <span className="text-sm text-muted-foreground">/ mo</span>
-                    </p>
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground uppercase tracking-widest">Monthly</p>
+                      <p className="text-3xl font-light mt-1">
+                        $4.99 <span className="text-sm text-muted-foreground">/ mo</span>
+                      </p>
+                    </div>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0" /> Unlimited watchlist
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0" /> Full archive access
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0" /> Priority alerts
+                      </li>
+                    </ul>
                   </div>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> Unlimited watchlist</li>
-                    <li className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> Full archive access</li>
-                    <li className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> Priority alerts</li>
-                  </ul>
-                  <Button
-                    className="w-full rounded-none font-bold tracking-widest uppercase"
-                    onClick={() => handleSubscribe("monthly")}
-                    disabled={createCheckout.isPending}
-                  >
-                    {createCheckout.isPending ? "Processing…" : "Subscribe Monthly"}
-                  </Button>
+                  <div className="mt-6">
+                    <Button
+                      className="w-full rounded-none font-bold tracking-widest uppercase"
+                      onClick={() => handleSubscribe("monthly")}
+                      disabled={createCheckout.isPending}
+                    >
+                      {createCheckout.isPending ? "Processing…" : "Subscribe Monthly"}
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Annual */}
-                <div className="border border-border p-6 space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground uppercase tracking-widest">Annual</p>
-                    <p className="text-3xl font-light mt-1">
-                      $49.99 <span className="text-sm text-muted-foreground">/ yr</span>
-                    </p>
-                    <p className="text-xs text-primary mt-1">Save 17%</p>
+                <div className="border border-border p-6 flex flex-col">
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground uppercase tracking-widest">Annual</p>
+                      <p className="text-3xl font-light mt-1">
+                        $49.99 <span className="text-sm text-muted-foreground">/ yr</span>
+                      </p>
+                      <p className="text-xs text-primary mt-1">Save 17%</p>
+                    </div>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0" /> Everything in Monthly
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0" /> Best value
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary shrink-0" /> 2 months free
+                      </li>
+                    </ul>
                   </div>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> Everything in Monthly</li>
-                    <li className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> Best value</li>
-                    <li className="flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> 2 months free</li>
-                  </ul>
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-none font-bold tracking-widest uppercase border-border"
-                    onClick={() => handleSubscribe("annual")}
-                    disabled={createCheckout.isPending}
-                  >
-                    {createCheckout.isPending ? "Processing…" : "Subscribe Annual"}
-                  </Button>
+                  <div className="mt-6">
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-none font-bold tracking-widest uppercase border-border"
+                      onClick={() => handleSubscribe("annual")}
+                      disabled={createCheckout.isPending}
+                    >
+                      {createCheckout.isPending ? "Processing…" : "Subscribe Annual"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -248,15 +270,45 @@ export default function Account() {
             <h2 className="font-serif text-2xl border-b border-border pb-4">Sign Out</h2>
             <p className="text-sm text-muted-foreground">Log out of your account on this device.</p>
             <Button
-              variant="destructive"
-              className="rounded-none font-bold tracking-widest uppercase"
-              onClick={() => signOut()}
+              variant="outline"
+              className="rounded-none font-bold tracking-widest uppercase border-border text-muted-foreground hover:text-foreground"
+              onClick={() => setShowSignOutConfirm(true)}
             >
               Sign Out
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Sign-out confirmation modal */}
+      {showSignOutConfirm && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSignOutConfirm(false); }}
+        >
+          <div className="bg-background border border-border p-8 max-w-sm w-full mx-4 space-y-6">
+            <div className="space-y-2">
+              <h3 className="font-serif text-2xl text-foreground">Sign out?</h3>
+              <p className="text-muted-foreground text-sm">Are you sure you want to sign out of Thursday Drop?</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 rounded-none font-bold tracking-widest uppercase"
+                onClick={() => { signOut(); setShowSignOutConfirm(false); }}
+              >
+                Yes, Sign Out
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-none font-bold tracking-widest uppercase border-border"
+                onClick={() => setShowSignOutConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

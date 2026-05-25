@@ -70,7 +70,6 @@ async function fetchActiveReleases(): Promise<ActiveReleasesResponse> {
 }
 
 function PreviewBadge({ closingDate }: { closingDate: string | null }) {
-  // Only show the date if it looks like an actual date (contains digits)
   const showDate = closingDate && /\d/.test(closingDate) && !/^preview$/i.test(closingDate.trim());
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-medium tracking-wide bg-amber-900/30 text-amber-300 border border-amber-700/50 px-2.5 py-1">
@@ -157,9 +156,8 @@ function TabPane({
   programs: ProgramWithWines[];
   search: string;
 }) {
-  const [openItem, setOpenItem] = useState<string>(
-    programs[0] ? String(programs[0].release.id) : "",
-  );
+  // All sections collapsed by default — user clicks to expand one at a time
+  const [openItem, setOpenItem] = useState<string>("");
 
   if (programs.length === 0) {
     return (
@@ -197,7 +195,6 @@ export default function Release() {
     if (!data?.programs) return {} as Record<string, ProgramWithWines[]>;
     const result: Record<string, ProgramWithWines[]> = {};
     for (const tab of TABS) {
-      // API already returns programs ordered by display_order asc
       result[tab.id] = data.programs.filter((p) => tab.types.has(p.release.program_type as any));
     }
     return result;
@@ -216,14 +213,14 @@ export default function Release() {
   return (
     <div className="min-h-screen bg-background">
       {/* Page header */}
-      <div className="border-b border-border bg-background/95 sticky top-20 z-30 backdrop-blur">
+      <div className="border-b border-border bg-background/95 sticky top-[60px] z-30 backdrop-blur">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="font-serif text-4xl text-primary">Current Release</h1>
               {!isLoading && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  {totalWines} wines · {data?.programs?.length ?? 0} active programs
+                  {totalWines} wines · {data?.programs?.length ?? 0} active programs · Click a section to expand
                 </p>
               )}
             </div>

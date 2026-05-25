@@ -1,46 +1,13 @@
-import { useState } from "react";
-import { useGetLatestRelease, useEmailSubscribe, useCreateCheckout } from "@workspace/api-client-react";
-import { WineTable } from "@/components/WineTable";
+import { useCreateCheckout } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
 import { Check } from "lucide-react";
 
 export default function Landing() {
-  const { data: latestRelease, isLoading } = useGetLatestRelease();
-  const emailSubscribe = useEmailSubscribe();
-  const { toast } = useToast();
-  const [email, setEmail] = useState("");
   const { profile } = useAuth();
   const [, setLocation] = useLocation();
   const createCheckout = useCreateCheckout();
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    emailSubscribe.mutate(
-      { data: { email } },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Subscribed successfully",
-            description: "You'll receive alerts for the next drop.",
-          });
-          setEmail("");
-        },
-        onError: () => {
-          toast({
-            title: "Subscription failed",
-            description: "Please try again later.",
-            variant: "destructive",
-          });
-        },
-      },
-    );
-  };
 
   const handleStripeCheckout = (plan: "monthly" | "annual") => {
     if (!profile) {
@@ -69,26 +36,26 @@ export default function Landing() {
             The club for <span className="text-primary italic">serious</span> collectors.
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground font-light max-w-2xl mx-auto leading-relaxed">
-            Premium LCBO Vintages intelligence. We track the drops, analyze the scores, and alert you before the best bottles sell out.
+            Thursday Drop tracks every LCBO Vintages release and sends you a personal alert the moment your favourite wines become available. Never miss an allocation again.
           </p>
 
-          <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row max-w-md mx-auto gap-4 pt-8">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-background rounded-none h-12 text-lg border-primary/50 focus-visible:ring-primary"
-              required
-            />
-            <Button
-              type="submit"
-              className="h-12 px-8 rounded-none font-bold tracking-widest uppercase text-primary-foreground"
-              disabled={emailSubscribe.isPending}
-            >
-              {emailSubscribe.isPending ? "Joining..." : "Join Free"}
-            </Button>
-          </form>
+          <div className="pt-6">
+            {profile ? (
+              <Link
+                href="/release"
+                className="inline-block bg-primary text-primary-foreground px-10 py-4 rounded-none font-bold tracking-widest uppercase hover:bg-primary/90 transition-colors text-sm"
+              >
+                View Current Release
+              </Link>
+            ) : (
+              <Link
+                href="/signup"
+                className="inline-block bg-primary text-primary-foreground px-10 py-4 rounded-none font-bold tracking-widest uppercase hover:bg-primary/90 transition-colors text-sm"
+              >
+                Create Free Account
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 
@@ -109,50 +76,20 @@ export default function Landing() {
             <div className="space-y-4">
               <div className="text-5xl font-serif text-border opacity-50">02</div>
               <h3 className="text-xl font-medium tracking-wide uppercase">We Monitor</h3>
-              <p className="text-muted-foreground">Our systems continuously scrape upcoming LCBO Vintages releases and cross-reference scores.</p>
+              <p className="text-muted-foreground">Our systems scrape upcoming LCBO Vintages releases every Thursday and cross-reference your watchlist.</p>
             </div>
             <div className="space-y-4">
               <div className="text-5xl font-serif text-border opacity-50">03</div>
               <h3 className="text-xl font-medium tracking-wide uppercase">Get Alerted</h3>
-              <p className="text-muted-foreground">Receive instant email notifications the moment a match drops, giving you the edge.</p>
+              <p className="text-muted-foreground">Receive a personal email alert the moment a match drops, giving you the edge before bottles sell out.</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Live Table */}
-      <section className="px-6 py-24 bg-card border-y border-border">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <h2 className="font-serif text-3xl md:text-4xl text-primary mb-2">Latest Release</h2>
-              <p className="text-muted-foreground">
-                {isLoading ? "Loading..." : latestRelease?.release.program_label || "Current Drop"}
-              </p>
-            </div>
-            <Link
-              href="/release"
-              className="text-sm font-bold tracking-widest uppercase hover:text-primary transition-colors border-b border-transparent hover:border-primary pb-1"
-            >
-              View All
-            </Link>
-          </div>
-
-          {isLoading ? (
-            <div className="h-64 flex items-center justify-center border border-border">
-              <span className="font-serif italic text-xl text-muted-foreground">Curating collection...</span>
-            </div>
-          ) : latestRelease?.wines ? (
-            <WineTable wines={latestRelease.wines.slice(0, 5)} showWatchButton />
-          ) : (
-            <div className="p-8 text-center border border-border text-muted-foreground">No current release data available.</div>
-          )}
         </div>
       </section>
 
       {/* Pricing section — shown to guests and Free users only */}
       {!profile?.is_pro && (
-        <section className="px-6 py-24 bg-background border-b border-border">
+        <section className="px-6 py-24 bg-card border-y border-border">
           <div className="max-w-4xl mx-auto space-y-12">
             <div className="text-center space-y-4">
               <h2 className="font-serif text-4xl md:text-5xl text-primary">Membership</h2>
@@ -161,10 +98,10 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-8 items-stretch">
               {/* Free Tier */}
-              <div className="bg-card border border-border p-8 flex flex-col">
-                <div className="space-y-4 flex-grow">
+              <div className="bg-background border border-border p-8 flex flex-col">
+                <div className="space-y-4 flex-1">
                   <h3 className="font-serif text-2xl text-foreground">Standard</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-light">$0</span>
@@ -204,7 +141,7 @@ export default function Landing() {
                 <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase py-1 px-4">
                   Premium
                 </div>
-                <div className="space-y-4 flex-grow">
+                <div className="space-y-4 flex-1">
                   <h3 className="font-serif text-2xl text-primary">Pro Collector</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-light">$4.99</span>
@@ -268,7 +205,7 @@ export default function Landing() {
                 href="/signup"
                 className="inline-block bg-primary text-primary-foreground px-8 py-4 rounded-none font-bold tracking-widest uppercase hover:bg-primary/90 transition-colors"
               >
-                Get Started Free
+                Create Free Account
               </Link>
             </div>
           )}
