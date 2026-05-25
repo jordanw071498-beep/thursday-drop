@@ -15,7 +15,7 @@ type AuthContextType = {
   profile: AuthProfile | null;
   token: string | null;
   loading: boolean;
-  signIn: (token: string, profile: AuthProfile) => void;
+  signIn: (token: string, profile: AuthProfile) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -56,11 +56,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const signIn = (newToken: string, newProfile: AuthProfile) => {
+  // Re-fetch profile from DB whenever the tab becomes visible — keeps is_pro in sync
+  useEffect(() => {
+    const onVisible = () => {
+      const stored = localStorage.getItem(TOKEN_KEY);
+      if (!stored) return;
+      fetchProfile(stored).then(setProfile).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onVisible();
+    });
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
+  const signIn = async (newToken: string, newProfile: AuthProfile) => {
     localStorage.setItem(TOKEN_KEY, newToken);
     setAuthTokenGetter(() => newToken);
     setToken(newToken);
     setProfile(newProfile);
+    // Re-fetch from DB immediately to guarantee is_pro/is_admin are fresh
+    try {
+      const fresh = await fetchProfile(newToken);
+      setProfile(fresh);
+    } catch {
+      // keep the profile from the login response as fallback
+    }
   };
 
   const signOut = async () => {

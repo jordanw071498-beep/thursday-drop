@@ -17,6 +17,7 @@ import Pricing from "@/pages/Pricing";
 import Watchlist from "@/pages/Watchlist";
 import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
+import AdminLogin from "@/pages/AdminLogin";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,9 @@ function Router() {
             <ProtectedRoute><Account /></ProtectedRoute>
           </Route>
           
+          {/* Admin Login — public hidden route */}
+          <Route path="/admin-login" component={AdminLogin} />
+
           {/* Admin Route */}
           <Route path="/admin">
             <AdminRoute><Admin /></AdminRoute>

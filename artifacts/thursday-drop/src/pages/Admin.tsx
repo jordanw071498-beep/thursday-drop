@@ -4,11 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle, Clock, ShieldCheck, User } from "lucide-react";
 
 interface AlertRow {
   id: number;
@@ -20,6 +19,14 @@ interface AlertRow {
   sent_at: string | null;
   morning_alert_sent: boolean;
   morning_sent_at: string | null;
+  created_at: string;
+}
+
+interface UserRow {
+  id: string;
+  email: string;
+  is_pro: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -40,10 +47,14 @@ function useAdminFetch<T>(path: string, token: string | null) {
 
 function useAdminPost(path: string, token: string | null) {
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (body?: Record<string, unknown>) => {
       const res = await fetch(`/api${path}`, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(body ? { "Content-Type": "application/json" } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
       });
       return res.json();
     },
@@ -69,10 +80,11 @@ function SentBadge({ sent, label, date }: { sent: boolean; label: string; date?:
 }
 
 export default function Admin() {
-  const { profile, token } = useAuth();
+  const { profile, token, refreshProfile } = useAuth();
 
   const { data: stats, refetch: refetchStats } = useGetAdminStats();
   const { data: alertsData, refetch: refetchAlerts } = useAdminFetch<{ alerts: AlertRow[] }>("/admin/alerts", token);
+  const { data: usersData, refetch: refetchUsers } = useAdminFetch<{ users: UserRow[] }>("/admin/users", token);
 
   const triggerScrape = useTriggerScrape();
   const sendAlerts = useSendAlerts();
@@ -83,8 +95,10 @@ export default function Admin() {
 
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const alerts = alertsData?.alerts ?? [];
+  const users = usersData?.users ?? [];
   const announcementPending = alerts.filter((a) => !a.announcement_alert_sent).length;
   const morningPending = alerts.filter((a) => !a.morning_alert_sent && a.release_opens_at).length;
 
@@ -142,6 +156,26 @@ export default function Admin() {
     );
   };
 
+  const handleTogglePro = async (user: UserRow) => {
+    if (!token) return;
+    setTogglingId(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/toggle-pro`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed");
+      await refetchUsers();
+      // If toggling self, refresh auth context too
+      if (user.id === profile?.id) await refreshProfile();
+      toast({ title: `Pro ${user.is_pro ? "removed from" : "granted to"} ${user.email}` });
+    } catch {
+      toast({ title: "Failed to toggle Pro", variant: "destructive" });
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background px-6 py-12">
       <div className="max-w-6xl mx-auto space-y-12">
@@ -152,7 +186,7 @@ export default function Admin() {
 
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="bg-card border border-border rounded-none h-12 w-full justify-start p-0 mb-8 overflow-x-auto">
-            {["overview", "scraper", "alerts", "newsletter"].map((tab) => (
+            {["overview", "scraper", "alerts", "users", "newsletter"].map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
@@ -211,7 +245,7 @@ export default function Admin() {
                     size="sm"
                     className="rounded-none tracking-widest uppercase w-full"
                   >
-                    {sendAlerts.isPending ? "Sending..." : "Dispatch Announcements"}
+                    {sendAlerts.isPending ? "Sending..." : "Send All Pending"}
                   </Button>
                 </div>
 
@@ -231,11 +265,11 @@ export default function Admin() {
                     variant="outline"
                     className="rounded-none tracking-widest uppercase w-full"
                   >
-                    {sendMorningAlerts.isPending ? "Sending..." : "Dispatch Morning Alerts"}
+                    {sendMorningAlerts.isPending ? "Sending..." : "Send All Pending"}
                   </Button>
                 </div>
 
-                {/* Test alert */}
+                {/* Test email */}
                 <div className="bg-card border border-border p-6 space-y-4">
                   <div>
                     <h3 className="font-serif text-lg mb-1">Test Emails</h3>
@@ -251,13 +285,13 @@ export default function Admin() {
                     variant="outline"
                     className="rounded-none tracking-widest uppercase w-full border-amber-700 text-amber-400 hover:bg-amber-900/20"
                   >
-                    {sendTestAlert.isPending ? "Sending..." : "Send Test Alert"}
+                    {sendTestAlert.isPending ? "Sending..." : "Send Test Email"}
                   </Button>
                 </div>
               </div>
 
               {/* Alert queue table */}
-              {alerts.length > 0 && (
+              {alerts.length > 0 ? (
                 <div className="bg-card border border-border">
                   <div className="p-6 border-b border-border">
                     <h3 className="font-serif text-xl">Alert Queue</h3>
@@ -304,12 +338,92 @@ export default function Admin() {
                     </table>
                   </div>
                 </div>
-              )}
-
-              {alerts.length === 0 && (
+              ) : (
                 <div className="bg-card border border-border p-16 text-center text-muted-foreground">
                   No alerts in queue. Run the scraper to generate matches.
                 </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Users */}
+          <TabsContent value="users">
+            <div className="bg-card border border-border">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <div>
+                  <h2 className="font-serif text-2xl">User Management</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{users.length} users total</p>
+                </div>
+              </div>
+              {users.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-xs uppercase tracking-widest text-muted-foreground">
+                        <th className="text-left px-6 py-3">Email</th>
+                        <th className="text-left px-4 py-3">Status</th>
+                        <th className="text-left px-4 py-3">Joined</th>
+                        <th className="text-left px-4 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {users.map((user) => (
+                        <tr key={user.id} className="hover:bg-background/30 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              {user.is_admin ? (
+                                <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                              ) : (
+                                <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              )}
+                              <span className="text-foreground">{user.email}</span>
+                              {user.id === profile?.id && (
+                                <span className="text-xs text-muted-foreground">(you)</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2 flex-wrap">
+                              {user.is_pro && (
+                                <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">
+                                  Pro
+                                </span>
+                              )}
+                              {user.is_admin && (
+                                <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">
+                                  Admin
+                                </span>
+                              )}
+                              {!user.is_pro && !user.is_admin && (
+                                <span className="text-xs text-muted-foreground">Free</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-muted-foreground text-xs">
+                            {new Date(user.created_at).toLocaleDateString("en-CA")}
+                          </td>
+                          <td className="px-4 py-4">
+                            <Button
+                              size="sm"
+                              variant={user.is_pro ? "outline" : "default"}
+                              disabled={togglingId === user.id}
+                              onClick={() => handleTogglePro(user)}
+                              className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
+                            >
+                              {togglingId === user.id
+                                ? "..."
+                                : user.is_pro
+                                ? "Remove Pro"
+                                : "Grant Pro"}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-16 text-center text-muted-foreground">No users yet.</div>
               )}
             </div>
           </TabsContent>

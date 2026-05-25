@@ -192,6 +192,58 @@ router.post("/admin/test-alert", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/admin/users", async (req, res): Promise<void> => {
+  const userId = getAdminUserId(req);
+  if (!userId || !(await isAdmin(userId))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const users = await db
+    .select({
+      id: profilesTable.id,
+      email: profilesTable.email,
+      is_pro: profilesTable.is_pro,
+      is_admin: profilesTable.is_admin,
+      created_at: profilesTable.created_at,
+    })
+    .from(profilesTable)
+    .orderBy(desc(profilesTable.created_at))
+    .limit(200);
+
+  res.json({
+    users: users.map((u) => ({ ...u, created_at: u.created_at.toISOString() })),
+  });
+});
+
+router.post("/admin/users/:id/toggle-pro", async (req, res): Promise<void> => {
+  const userId = getAdminUserId(req);
+  if (!userId || !(await isAdmin(userId))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const targetId = req.params.id;
+  const [current] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.id, targetId))
+    .limit(1);
+
+  if (!current) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(profilesTable)
+    .set({ is_pro: !current.is_pro })
+    .where(eq(profilesTable.id, targetId))
+    .returning();
+
+  res.json({ id: updated.id, email: updated.email, is_pro: updated.is_pro });
+});
+
 router.post("/admin/send-picks", async (req, res): Promise<void> => {
   const userId = getAdminUserId(req);
   if (!userId || !(await isAdmin(userId))) {

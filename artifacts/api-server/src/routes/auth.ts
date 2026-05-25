@@ -112,4 +112,59 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   res.json(serializeProfile(profile));
 });
 
+router.post("/auth/admin-login", async (req, res): Promise<void> => {
+  const { username, password } = req.body ?? {};
+
+  if (username !== "admin") {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    res.status(503).json({ error: "ADMIN_PASSWORD not configured" });
+    return;
+  }
+  if (password !== adminPassword) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  // Find existing admin profile or create one
+  const [existing] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.is_admin, true))
+    .limit(1);
+
+  const session_token = crypto.randomUUID();
+
+  let profile;
+  if (existing) {
+    const [updated] = await db
+      .update(profilesTable)
+      .set({ session_token, is_pro: true, is_admin: true })
+      .where(eq(profilesTable.id, existing.id))
+      .returning();
+    profile = updated;
+  } else {
+    // Create admin profile
+    const password_hash = await bcrypt.hash(crypto.randomUUID(), 12);
+    const [created] = await db
+      .insert(profilesTable)
+      .values({
+        id: crypto.randomUUID(),
+        email: "admin@thursday-drop.internal",
+        password_hash,
+        session_token,
+        is_pro: true,
+        is_admin: true,
+      })
+      .returning();
+    profile = created;
+  }
+
+  res.json({ token: session_token, profile: serializeProfile(profile) });
+});
+
 export default router;
