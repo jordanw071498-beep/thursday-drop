@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function Divider() {
+  return <span className="w-px h-3 bg-border/60 mx-5 shrink-0" />;
+}
+
 const NAV_LINK =
   "text-xs font-light tracking-[0.15em] uppercase text-muted-foreground hover:text-primary transition-colors whitespace-nowrap";
 
@@ -55,13 +59,17 @@ export function Nav() {
           </Link>
 
           {/* All nav links — desktop, pushed to far right */}
-          <div className="hidden md:flex items-center gap-6 ml-auto">
+          <div className="hidden md:flex items-center ml-auto">
             <NavLink href="/release">Release</NavLink>
+            <Divider />
             <NavLink href="/history">History</NavLink>
             {profile ? (
               <>
+                <Divider />
                 <NavLink href="/watchlist">Watchlist</NavLink>
+                <Divider />
                 <NavLink href="/account">Account</NavLink>
+                <Divider />
                 <button
                   onClick={() => setShowSignOutConfirm(true)}
                   className={NAV_LINK}
@@ -71,7 +79,9 @@ export function Nav() {
               </>
             ) : (
               <>
+                <Divider />
                 <NavLink href="/login">Login</NavLink>
+                <Divider />
                 <Link
                   href="/signup"
                   className="text-xs font-light tracking-[0.15em] uppercase text-background bg-primary px-4 py-2 hover:bg-primary/90 transition-colors whitespace-nowrap"
