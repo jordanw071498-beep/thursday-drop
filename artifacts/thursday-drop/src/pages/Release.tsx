@@ -50,12 +50,12 @@ const TABS = [
   {
     id: "special_offers",
     label: "Special Offers",
-    types: new Set(["special_offer", "vintages"]),
+    types: new Set(["special_offers"]),
   },
   {
     id: "monthly_collection",
     label: "Monthly Collection",
-    types: new Set(["classics_collection"]),
+    types: new Set(["monthly_collection"]),
   },
   {
     id: "bordeaux_futures",

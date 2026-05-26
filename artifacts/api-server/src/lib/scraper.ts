@@ -7,8 +7,8 @@ const BASE = "https://www.vintagesshoponline.com/vintages";
 const UA = "Mozilla/5.0 (compatible; ThursdayDropBot/1.0; +https://thursdaydrop.ca)";
 
 const INDEX_PAGES = [
-  { url: `${BASE}/ClassicsCollection.aspx`, type: "classics_collection" },
-  { url: `${BASE}/SpecialOffer.aspx`, type: "special_offer" },
+  { url: `${BASE}/ClassicsCollection.aspx`, type: "monthly_collection" },
+  { url: `${BASE}/SpecialOffer.aspx`, type: "special_offers" },
   { url: `${BASE}/BordeauxFuture.aspx`, type: "bordeaux_futures" },
 ];
 
@@ -426,6 +426,19 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
       errors,
       sample: wines.slice(0, 3).map((w) => `${w.wine_name} | ${w.score ?? "—"} pts | $${w.price ?? "—"} | ${w.vintage ?? "NV"}`),
     });
+  }
+
+  // Force mode: prune release_cycles that weren't discovered in this run
+  if (options.force && programs.length > 0) {
+    const scrapedIds = new Set(programs.map((p) => p.programId));
+    const allCycles = await db
+      .select({ id: releaseCyclesTable.id, program_id: releaseCyclesTable.program_id })
+      .from(releaseCyclesTable);
+    for (const stale of allCycles.filter((c) => !scrapedIds.has(c.program_id))) {
+      await db.delete(winesTable).where(eq(winesTable.release_cycle_id, stale.id));
+      await db.delete(releaseCyclesTable).where(eq(releaseCyclesTable.id, stale.id));
+      logger.info({ programId: stale.program_id, cycleId: stale.id }, "Force mode: pruned stale release cycle");
+    }
   }
 
   // Send announcement alerts for all newly matched wines

@@ -12,8 +12,8 @@ import { Link } from "wouter";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getProgramTypeLabel(programType: string): string {
-  if (programType === "special_offer" || programType === "vintages") return "Special Offers";
-  if (programType === "classics_collection") return "Monthly Collection";
+  if (programType === "special_offers") return "Special Offers";
+  if (programType === "monthly_collection") return "Monthly Collection";
   if (programType === "bordeaux_futures") return "Bordeaux Futures";
   return programType;
 }
