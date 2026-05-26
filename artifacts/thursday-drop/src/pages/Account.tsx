@@ -1,5 +1,6 @@
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { useGetSubscriptionInfo, useCancelSubscription, useCreateCheckout } from "@workspace/api-client-react";
 import { useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
@@ -84,12 +85,9 @@ export default function Account() {
     : null;
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
-      <div className="max-w-2xl mx-auto space-y-12">
-        <header className="border-b border-border pb-8">
-          <h1 className="font-serif text-5xl text-primary mb-4">Account</h1>
-          <p className="text-muted-foreground text-lg">Manage your membership and preferences.</p>
-        </header>
+    <div className="min-h-screen bg-background">
+      <PageHeader title="Account" subtitle="Manage your membership and preferences." />
+      <div className="max-w-2xl mx-auto px-6 py-10 space-y-12">
 
         {showSuccess && (
           <div className="bg-primary/10 border border-primary px-6 py-4 text-sm font-medium text-primary tracking-wide">

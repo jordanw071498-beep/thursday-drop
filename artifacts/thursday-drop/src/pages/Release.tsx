@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { WineTable } from "@/components/WineTable";
+import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
@@ -212,30 +213,22 @@ export default function Release() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Page header */}
-      <div className="border-b border-border bg-background/95 sticky top-[60px] z-30 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="font-serif text-4xl text-primary">Current Release</h1>
-              {!isLoading && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {totalWines} wines · {data?.programs?.length ?? 0} active programs · Click a section to expand
-                </p>
-              )}
-            </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search wines, producers, regions..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 bg-card border-border rounded-none h-10"
-              />
-            </div>
+      <PageHeader
+        title="Current Release"
+        subtitle={!isLoading ? `${totalWines} wines · ${data?.programs?.length ?? 0} programs · click a section to expand` : undefined}
+        sticky
+        right={
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search wines, producers..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); }}
+              className="pl-10 bg-card border-border rounded-none h-9"
+            />
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {isLoading ? (

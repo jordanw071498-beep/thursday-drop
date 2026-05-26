@@ -1,4 +1,5 @@
 import { useGetWatchlist, useAddToWatchlist, useRemoveFromWatchlist, getGetWatchlistQueryKey } from "@workspace/api-client-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -129,18 +130,17 @@ export default function Watchlist() {
   };
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
-      <div className="max-w-4xl mx-auto space-y-12">
-        <header className="border-b border-border pb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <h1 className="font-serif text-5xl text-primary mb-4">Watchlist</h1>
-            <p className="text-muted-foreground text-lg">We'll notify you when these drop.</p>
-          </div>
-          <div className="text-right">
-            <span className="font-mono text-xl">{count}</span>
-            <span className="text-muted-foreground"> / {limit === Infinity ? '∞' : limit} items</span>
-          </div>
-        </header>
+    <div className="min-h-screen bg-background">
+      <PageHeader
+        title="Watchlist"
+        subtitle="We'll notify you when these drop."
+        right={
+          <span className="text-sm text-muted-foreground font-mono">
+            {count} / {limit === Infinity ? '∞' : limit} items
+          </span>
+        }
+      />
+      <div className="max-w-4xl mx-auto px-6 py-10 space-y-12">
 
         <div className="bg-card p-6 border border-border space-y-6">
           <h2 className="font-serif text-2xl">Add New Target</h2>

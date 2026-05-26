@@ -1,5 +1,6 @@
 import { useListReleases, useListWines } from "@workspace/api-client-react";
 import { WineTable } from "@/components/WineTable";
+import { PageHeader } from "@/components/PageHeader";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -173,12 +174,9 @@ export default function History() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
-      <div className="max-w-7xl mx-auto space-y-10">
-        <header className="border-b border-border pb-8">
-          <h1 className="font-serif text-5xl text-primary mb-4">The Archive</h1>
-          <p className="text-muted-foreground text-lg">Search the complete historical database.</p>
-        </header>
+    <div className="min-h-screen bg-background">
+      <PageHeader title="The Archive" subtitle="Search the complete historical database." />
+      <div className="max-w-7xl mx-auto px-6 py-10 space-y-10">
 
         {/* Search */}
         <div className="relative max-w-lg">
