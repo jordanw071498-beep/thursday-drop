@@ -45,25 +45,23 @@ export function Nav() {
             : "bg-background/90 backdrop-blur-sm border-b border-border/40"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 h-[60px] flex items-center">
-          {/* Left: Logo */}
-          <div className="flex-none">
-            <Link
-              href="/"
-              className="font-serif text-lg font-bold tracking-[0.2em] text-primary uppercase whitespace-nowrap leading-none"
-            >
-              Thursday Drop
-            </Link>
-          </div>
+        <div className="max-w-7xl mx-auto px-6 h-[60px] flex items-center gap-8">
+          {/* Logo */}
+          <Link
+            href="/"
+            className="font-serif text-lg font-bold tracking-[0.2em] text-primary uppercase whitespace-nowrap leading-none shrink-0"
+          >
+            Thursday Drop
+          </Link>
 
-          {/* Center: Public links — desktop only */}
-          <div className="hidden md:flex flex-1 items-center justify-center gap-8">
+          {/* Public nav links — desktop */}
+          <div className="hidden md:flex items-center gap-8">
             <NavLink href="/release">Release</NavLink>
             <NavLink href="/history">History</NavLink>
           </div>
 
-          {/* Right: User links — desktop only */}
-          <div className="hidden md:flex flex-none items-center">
+          {/* Right: User links — desktop, pushed to far right */}
+          <div className="hidden md:flex items-center ml-auto">
             {profile ? (
               <div className="flex items-center gap-6">
                 <NavLink href="/watchlist">Watchlist</NavLink>
@@ -89,7 +87,7 @@ export function Nav() {
           </div>
 
           {/* Mobile: hamburger — pushed to right */}
-          <div className="flex md:hidden flex-1 justify-end">
+          <div className="flex md:hidden ml-auto">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="text-muted-foreground hover:text-primary transition-colors p-1"
