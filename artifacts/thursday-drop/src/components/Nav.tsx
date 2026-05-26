@@ -54,16 +54,12 @@ export function Nav() {
             Thursday Drop
           </Link>
 
-          {/* Public nav links — desktop */}
-          <div className="hidden md:flex items-center gap-8">
+          {/* All nav links — desktop, pushed to far right */}
+          <div className="hidden md:flex items-center gap-6 ml-auto">
             <NavLink href="/release">Release</NavLink>
             <NavLink href="/history">History</NavLink>
-          </div>
-
-          {/* Right: User links — desktop, pushed to far right */}
-          <div className="hidden md:flex items-center ml-auto">
             {profile ? (
-              <div className="flex items-center gap-6">
+              <>
                 <NavLink href="/watchlist">Watchlist</NavLink>
                 <NavLink href="/account">Account</NavLink>
                 <button
@@ -72,9 +68,9 @@ export function Nav() {
                 >
                   Sign out
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-6">
+              <>
                 <NavLink href="/login">Login</NavLink>
                 <Link
                   href="/signup"
@@ -82,7 +78,7 @@ export function Nav() {
                 >
                   Sign up
                 </Link>
-              </div>
+              </>
             )}
           </div>
 
