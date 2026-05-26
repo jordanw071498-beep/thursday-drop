@@ -117,7 +117,7 @@ function ProgramSection({ program, search }: { program: ProgramWithWines; search
             </span>
             {!isPreview && program.release.closing_date && (
               <span className="text-xs text-muted-foreground border border-border px-2 py-0.5">
-                Closes: {program.release.closing_date}
+                {program.release.closing_date}
               </span>
             )}
             <a
