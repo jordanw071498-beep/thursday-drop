@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { Nav } from "@/components/Nav";
+import { Footer } from "@/components/Footer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminRoute } from "@/components/AdminRoute";
 
@@ -19,14 +20,16 @@ import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
 import Unsubscribe from "@/pages/Unsubscribe";
+import FAQ from "@/pages/FAQ";
+import Contact from "@/pages/Contact";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       <Nav />
-      <div className="pt-20">
+      <div className="pt-20 flex-1 flex flex-col">
         <Switch>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
@@ -34,6 +37,8 @@ function Router() {
           <Route path="/release" component={Release} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/unsubscribe" component={Unsubscribe} />
+          <Route path="/faq" component={FAQ} />
+          <Route path="/contact" component={Contact} />
 
           {/* Protected Routes */}
           <Route path="/history">
@@ -57,6 +62,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </div>
+      <Footer />
     </div>
   );
 }

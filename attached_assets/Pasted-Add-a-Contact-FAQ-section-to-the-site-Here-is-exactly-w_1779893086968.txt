@@ -1,0 +1,35 @@
+Add a Contact & FAQ section to the site. Here is exactly what to build:
+1. Add a FAQ page at /faq with these questions and answers:
+Q: What is Thursday Drop?
+A: Thursday Drop is a personal alert service for LCBO Vintages collectors. We track every release — Special Offers, Monthly Cellar Features, and Bordeaux Futures — and send you a personalized email when wines on your watchlist become available. No more checking the LCBO website every week.
+Q: How does the watchlist work?
+A: After creating a free account, you can add wines to your watchlist in three ways — track a specific wine and vintage, track a wine across all vintages, or track an entire producer. We alert you any time a match appears in a new Vintages release.
+Q: When do alerts go out?
+A: We scrape the LCBO Vintages website every Thursday at 9am Eastern. If your wine is in the release, your alert goes out the same morning. Pro subscribers also receive a second reminder alert at 7am on the morning ordering opens.
+Q: What is the difference between Free and Pro?
+A: Free accounts can track up to 5 wines and receive standard release alerts. Pro accounts ($4.99/month or $49.99/year) get unlimited watchlist items, the 7am morning reminder before ordering opens, weekly curated picks emails, and full access to the wine history archive.
+Q: How do I cancel my Pro subscription?
+A: You can cancel anytime from your Account page. You keep Pro access until the end of your current billing period. No questions asked.
+Q: Which LCBO releases do you track?
+A: We track all three Vintages programs — Special Offers (weekly), Monthly Cellar Features (monthly), and Bordeaux Futures (annual). The scraper automatically discovers new programs each Thursday without any manual input.
+Q: Is Thursday Drop affiliated with the LCBO?
+A: No. Thursday Drop is an independent service built by a Toronto-based collector. We are not affiliated with, endorsed by, or connected to the LCBO or Vintages in any way.
+Q: How do I suggest a feature or report a problem?
+A: Use the contact form on our Contact page or email hello@thursdaydrop.ca directly. We read every message.
+Style the FAQ page as clean accordion-style expandable questions. Gold question text, cream answer text. Each question expands on click with a smooth animation. Premium and minimal.
+2. Add a Contact page at /contact with:
+
+A short intro line: 'Have a question, suggestion, or just want to say hello? We read every message.'
+A simple form with three fields: Name, Email, Message
+A submit button that sends the message to hello@thursdaydrop.ca via Resend
+A success message after sending: 'Thank you — we will get back to you within 48 hours.'
+Below the form, a direct email link: hello@thursdaydrop.ca styled in gold
+A note that says: 'For account or billing issues, please include the email address associated with your Thursday Drop account.'
+
+3. Add FAQ and Contact links to the footer on every page. The footer should have two rows:
+
+Top row: Thursday Drop logo left, nav links center (Release, History, Pricing, FAQ, Contact), social proof text right
+Bottom row: copyright left, 'Not affiliated with LCBO or Vintages' center, 'Built in Toronto' right
+
+4. Add a small 'Have a suggestion?' link in the bottom of the admin dashboard that opens a mailto link to hello@thursdaydrop.ca
+Make sure the contact form actually sends via Resend — test it and confirm the email arrives at the destination address.

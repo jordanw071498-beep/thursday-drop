@@ -468,6 +468,15 @@ export default function Admin() {
             </div>
           </TabsContent>
         </Tabs>
+
+        <div className="text-center pt-4 pb-2">
+          <a
+            href="mailto:hello@thursdaydrop.ca?subject=Admin suggestion"
+            className="text-xs text-muted-foreground/50 hover:text-primary transition-colors"
+          >
+            Have a suggestion? →
+          </a>
+        </div>
       </div>
     </div>
   );
