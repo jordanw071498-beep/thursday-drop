@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "pnpm run typecheck:libs && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/thursday-drop run build",
-  "outputDirectory": "artifacts/thursday-drop/dist",
+  "outputDirectory": "artifacts/thursday-drop/dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
   ],
