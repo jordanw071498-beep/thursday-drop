@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { db, releaseCyclesTable, winesTable, watchlistItemsTable, alertsTable } from "@workspace/db";
+import { db, releaseCyclesTable, winesTable, watchlistItemsTable, watchlistCategoriesTable, alertsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
 
@@ -294,13 +294,45 @@ async function discoverPrograms(): Promise<ProgramInfo[]> {
   return programs;
 }
 
-async function runMatchingEngine(
-  insertedWines: Array<{ id: number; wine_name: string; producer: string | null; vintage: string | null }>,
-): Promise<number> {
+type InsertedWine = {
+  id: number;
+  wine_name: string;
+  producer: string | null;
+  vintage: string | null;
+  region: string | null;
+  region_category: string | null;
+};
+
+const CATEGORY_MATCHERS: Record<string, (w: InsertedWine) => boolean> = {
+  "Burgundy Grand Cru": (w) =>
+    w.region_category === "burgundy" && /grand\s+cru/i.test(w.wine_name),
+  "Burgundy Premier Cru": (w) =>
+    w.region_category === "burgundy" && (/1er\s+cru|premier\s+cru/i.test(w.wine_name) || /premier\s+cru/i.test(w.region ?? "")),
+  "Brunello di Montalcino": (w) =>
+    /brunello/i.test(w.wine_name) || /montalcino/i.test(w.region ?? ""),
+  "Barolo and Barbaresco": (w) =>
+    /barolo|barbaresco/i.test(w.wine_name),
+  "Bordeaux First Growths": (w) =>
+    /ch[âa]teau\s+(margaux|latour|lafite|mouton|haut.brion|p[ée]trus|ausone|cheval\s+blanc)/i.test(w.wine_name),
+  "Champagne Prestige Cuvée": (w) =>
+    w.region_category === "champagne" && /cristal|dom\s+p[ée]rignon|belle\s+[ée]poque|clos\s+du\s+mesnil|substance|blanc\s+de\s+blancs|prestige/i.test(w.wine_name),
+  "Napa Valley Cult Cabernet": (w) =>
+    /napa/i.test(w.region ?? "") && /screaming\s+eagle|harlan|opus\s+one|dominus|peter\s+michael|bond\s+estate/i.test(w.wine_name),
+  "Rhône Valley (Guigal La La wines)": (w) =>
+    w.region_category === "rhone",
+  "Super Tuscans": (w) =>
+    w.region_category === "italy" && /sassicaia|ornellaia|masseto|tignanello|solaia|guado\s+al\s+tasso/i.test(w.wine_name),
+  "Sauternes and Dessert wines": (w) =>
+    /sauternes|d'yquem|yquem|beerenauslese|trockenbeerenauslese|eiswein|tokaj/i.test(w.wine_name) || /sauternes/i.test(w.region ?? ""),
+};
+
+async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number> {
   const watchlistItems = await db.select().from(watchlistItemsTable);
+  const categoryItems = await db.select().from(watchlistCategoriesTable);
   let matched = 0;
 
   for (const wine of insertedWines) {
+    // Wine-level matching
     for (const item of watchlistItems) {
       let matches = false;
       if (item.match_type === "producer") {
@@ -328,6 +360,21 @@ async function runMatchingEngine(
         } catch {
           // ignore duplicate conflicts
         }
+      }
+    }
+
+    // Category-level matching
+    for (const catItem of categoryItems) {
+      const matcher = CATEGORY_MATCHERS[catItem.category];
+      if (!matcher || !matcher(wine)) continue;
+      try {
+        await db
+          .insert(alertsTable)
+          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name, sent: false })
+          .onConflictDoNothing();
+        matched++;
+      } catch {
+        // ignore duplicate conflicts
       }
     }
   }
@@ -386,7 +433,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
       })
       .returning();
 
-    const inserted: Array<{ id: number; wine_name: string; producer: string | null; vintage: string | null }> = [];
+    const inserted: InsertedWine[] = [];
 
     for (const w of wines) {
       const [row] = await db
@@ -409,7 +456,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
           sold_out: false,
         })
         .returning();
-      inserted.push({ id: row.id, wine_name: row.wine_name, producer: row.producer, vintage: row.vintage });
+      inserted.push({ id: row.id, wine_name: row.wine_name, producer: row.producer, vintage: row.vintage, region: row.region, region_category: row.region_category });
     }
 
     const alertsQueued = await runMatchingEngine(inserted);

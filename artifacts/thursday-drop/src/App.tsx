@@ -18,6 +18,7 @@ import Watchlist from "@/pages/Watchlist";
 import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
+import Unsubscribe from "@/pages/Unsubscribe";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +33,8 @@ function Router() {
           <Route path="/signup" component={Signup} />
           <Route path="/release" component={Release} />
           <Route path="/pricing" component={Pricing} />
-          
+          <Route path="/unsubscribe" component={Unsubscribe} />
+
           {/* Protected Routes */}
           <Route path="/history">
             <ProtectedRoute><History /></ProtectedRoute>
@@ -43,7 +45,7 @@ function Router() {
           <Route path="/account">
             <ProtectedRoute><Account /></ProtectedRoute>
           </Route>
-          
+
           {/* Admin Login — public hidden route */}
           <Route path="/admin-login" component={AdminLogin} />
 

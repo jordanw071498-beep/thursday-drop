@@ -1,0 +1,76 @@
+Great additions. Paste this into Replit AI chat:
+
+"Six new features to add:
+1. Unsubscribe and cancellation:
+
+Add an unsubscribe link at the bottom of every alert email that says 'Unsubscribe from Thursday Drop alerts'. Clicking it takes them to a page at /unsubscribe?token=XXX that immediately sets alerts_enabled to false on their profile and shows a confirmation message
+On the Account page, add a clearly visible 'Cancel Subscription' button for Pro users. Clicking it shows a confirmation modal saying 'Are you sure? You will lose Pro access at the end of your billing period.' Confirming calls Stripe to cancel the subscription and sets a cancels_at date on their profile. They keep Pro access until that date
+
+2. Password requirements — update signup validation to require:
+
+Minimum 8 characters
+At least one uppercase letter
+At least one number
+At least one special character (!@#$%^&)*
+Show a real-time password strength indicator below the password field with clear requirements checklist — each requirement gets a green checkmark as it's met
+Show a confirm password field and validate they match before allowing signup
+
+3. Signup page — add the Pro vs Free pricing comparison below the signup form, identical to what appears on the Account page. Show Monthly at $4.99/mo and Annual at $49.99/yr with the feature comparison. Users can choose a plan during signup — if they select Pro, complete signup first then redirect to Stripe checkout automatically
+4. Watchlist category tracking for Pro users — add a new section on the Watchlist page for Pro subscribers called 'Track by Category'. Show these categories as toggleable options:
+
+Burgundy Grand Cru
+Burgundy Premier Cru
+Brunello di Montalcino
+Barolo and Barbaresco
+Bordeaux First Growths
+Champagne Prestige Cuvée
+Napa Valley Cult Cabernet
+Rhône Valley (Guigal La La wines)
+Super Tuscans
+Sauternes and Dessert wines
+When a category is toggled on, save it to a watchlist_categories table with user_id and category. The matching engine should also match against categories — if a wine's region_category matches a tracked category, generate an alert
+
+5. Suggested wines list — add a 'Suggested Wines' section on the Watchlist page showing the top 40 most in-demand LCBO Vintages wines that sell out fastest. Display them as a clean grid of cards with wine name, producer, region, and an 'Add to Watchlist' button. Hardcode this curated list — include wines like:
+
+Ornellaia Bolgheri Superiore
+Sassicaia Bolgheri
+Domaine de la Romanée-Conti (all wines)
+Rousseau Chambertin Grand Cru
+Leroy Bourgogne Rouge
+Coche-Dury Meursault
+Mugnier Chambolle-Musigny Les Amoureuses
+Leflaive Montrachet Grand Cru
+Giacomo Conterno Barolo Monfortino
+Gaja Barbaresco
+Guigal Côte-Rôtie La Landonne
+Chave Hermitage
+Krug Clos du Mesnil
+Salon Blanc de Blancs
+Serafin Gevrey-Chambertin Vieilles Vignes
+Ponsot Clos Saint-Denis Grand Cru
+Dujac Clos de la Roche Grand Cru
+Henri Bonneau Châteauneuf-du-Pape Réserve des Célestins
+Rayas Châteauneuf-du-Pape
+Giacomo Conterno Barolo Cascina Francia
+Roumier Chambolle-Musigny Les Amoureuses
+Fourrier Gevrey-Chambertin Vieilles Vignes
+Domaine Leflaive Puligny-Montrachet Les Pucelles
+Hubert Lignier Clos de la Roche Grand Cru
+Meo-Camuzet Vosne-Romanée
+Comte Liger-Belair La Romanée Grand Cru
+Prieuré Roch Nuits-Saint-Georges
+Billecart-Salmon Clos Saint-Hilaire
+Jacques Selosse Substance
+Peter Michael Les Pavots
+Screaming Eagle Cabernet Sauvignon
+Harlan Estate
+Opus One
+Dominus Estate
+Pétrus
+Le Pin
+Château Lafleur
+Château Léoville-Las Cases
+Château Palmer
+d'Yquem Sauternes
+
+Display the suggested wines in a clean grid. Each card shows wine name, producer, region, and three quick-add buttons: This Wine, Any Vintage and This Producer — same three options as the regular watchlist add flow. Free users can add up to their 5 item limit from this list. Pro users have no limit.

@@ -6,6 +6,14 @@ import { getAuthProfile, serializeProfile } from "../lib/auth.js";
 
 const router: IRouter = Router();
 
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter";
+  if (!/[0-9]/.test(password)) return "Password must contain at least one number";
+  if (!/[!@#$%^&*]/.test(password)) return "Password must contain at least one special character (!@#$%^&*)";
+  return null;
+}
+
 router.post("/auth/signup", async (req, res): Promise<void> => {
   const { email, password } = req.body ?? {};
 
@@ -13,8 +21,14 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Email is required" });
     return;
   }
-  if (!password || typeof password !== "string" || password.length < 6) {
-    res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (!password || typeof password !== "string") {
+    res.status(400).json({ error: "Password is required" });
+    return;
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    res.status(400).json({ error: passwordError });
     return;
   }
 
@@ -34,6 +48,7 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   const password_hash = await bcrypt.hash(password, 12);
   const session_token = crypto.randomUUID();
   const id = crypto.randomUUID();
+  const unsubscribe_token = crypto.randomUUID();
 
   const [profile] = await db
     .insert(profilesTable)
@@ -42,8 +57,10 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       email: normalizedEmail,
       password_hash,
       session_token,
+      unsubscribe_token,
       is_pro: false,
       is_admin: false,
+      alerts_enabled: true,
     })
     .returning();
 
@@ -112,6 +129,33 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   res.json(serializeProfile(profile));
 });
 
+// Unsubscribe via token (no auth required)
+router.get("/auth/unsubscribe", async (req, res): Promise<void> => {
+  const token = typeof req.query.token === "string" ? req.query.token : null;
+  if (!token) {
+    res.status(400).json({ error: "Missing unsubscribe token" });
+    return;
+  }
+
+  const [profile] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.unsubscribe_token, token))
+    .limit(1);
+
+  if (!profile) {
+    res.status(404).json({ error: "Invalid or expired unsubscribe token" });
+    return;
+  }
+
+  await db
+    .update(profilesTable)
+    .set({ alerts_enabled: false })
+    .where(eq(profilesTable.id, profile.id));
+
+  res.json({ success: true });
+});
+
 router.post("/auth/admin-login", async (req, res): Promise<void> => {
   const { username, password } = req.body ?? {};
 
@@ -130,7 +174,6 @@ router.post("/auth/admin-login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Find existing admin profile or create one
   const [existing] = await db
     .select()
     .from(profilesTable)
@@ -148,7 +191,6 @@ router.post("/auth/admin-login", async (req, res): Promise<void> => {
       .returning();
     profile = updated;
   } else {
-    // Create admin profile
     const password_hash = await bcrypt.hash(crypto.randomUUID(), 12);
     const [created] = await db
       .insert(profilesTable)

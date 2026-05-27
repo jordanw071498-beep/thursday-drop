@@ -4,18 +4,45 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
+import { Check, X } from "lucide-react";
+
+type Plan = "free" | "monthly" | "annual";
+
+const PASSWORD_REQS = [
+  { key: "length", label: "At least 8 characters", test: (p: string) => p.length >= 8 },
+  { key: "upper", label: "One uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
+  { key: "number", label: "One number", test: (p: string) => /[0-9]/.test(p) },
+  { key: "special", label: "One special character (!@#$%^&*)", test: (p: string) => /[!@#$%^&*]/.test(p) },
+];
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<Plan>("free");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
   const { signIn } = useAuth();
 
+  const reqs = PASSWORD_REQS.map((r) => ({ ...r, met: r.test(password) }));
+  const allMet = reqs.every((r) => r.met);
+  const passwordsMatch = password === confirm && confirm.length > 0;
+  const canSubmit = allMet && passwordsMatch && email.trim().length > 0;
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!allMet) {
+      setError("Please meet all password requirements.");
+      return;
+    }
+    if (!passwordsMatch) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -32,7 +59,32 @@ export default function Signup() {
         return;
       }
 
-      signIn(data.token, data.profile);
+      await signIn(data.token, data.profile);
+
+      if (selectedPlan !== "free") {
+        try {
+          const checkoutRes = await fetch("/api/stripe/checkout", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.token}`,
+            },
+            body: JSON.stringify({
+              plan: selectedPlan,
+              user_id: data.profile.id,
+              email: data.profile.email || email.trim().toLowerCase(),
+            }),
+          });
+          if (checkoutRes.ok) {
+            const { url } = await checkoutRes.json();
+            window.location.href = url;
+            return;
+          }
+        } catch {
+          // fallthrough to watchlist if checkout fails
+        }
+      }
+
       setLocation("/watchlist");
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -42,8 +94,8 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen bg-background px-4 py-12">
+      <div className="w-full max-w-md mx-auto space-y-8">
         <div className="text-center">
           <h2 className="font-serif text-4xl text-primary mb-2">Join the Club</h2>
           <p className="text-muted-foreground text-lg">Create an account to track premium wine releases.</p>
@@ -79,19 +131,55 @@ export default function Signup() {
               onChange={e => setPassword(e.target.value)}
               required
               disabled={loading}
-              minLength={6}
               className="bg-background rounded-none"
               autoComplete="new-password"
             />
-            <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+            {password.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {reqs.map((r) => (
+                  <li key={r.key} className={`flex items-center gap-2 text-xs transition-colors ${r.met ? "text-primary" : "text-muted-foreground"}`}>
+                    {r.met
+                      ? <Check className="h-3 w-3 shrink-0 text-primary" />
+                      : <X className="h-3 w-3 shrink-0 text-muted-foreground/50" />}
+                    {r.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {password.length === 0 && (
+              <p className="text-xs text-muted-foreground">Min 8 chars with uppercase, number, and special character.</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm">Confirm Password</Label>
+            <Input
+              id="confirm"
+              type="password"
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              required
+              disabled={loading}
+              className="bg-background rounded-none"
+              autoComplete="new-password"
+            />
+            {confirm.length > 0 && (
+              <p className={`text-xs flex items-center gap-1.5 ${passwordsMatch ? "text-primary" : "text-destructive"}`}>
+                {passwordsMatch
+                  ? <><Check className="h-3 w-3" /> Passwords match</>
+                  : <><X className="h-3 w-3" /> Passwords do not match</>}
+              </p>
+            )}
           </div>
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !canSubmit}
             className="w-full text-primary-foreground font-bold tracking-widest uppercase rounded-none"
           >
-            {loading ? "Creating account..." : "Sign Up"}
+            {loading
+              ? selectedPlan !== "free" ? "Creating account…" : "Creating account…"
+              : selectedPlan !== "free" ? "Create Account & Subscribe" : "Create Free Account"}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
@@ -99,6 +187,86 @@ export default function Signup() {
             <Link href="/login" className="text-primary hover:underline">Log in</Link>
           </p>
         </form>
+
+        {/* Plan selection */}
+        <div className="space-y-4">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest">Choose your plan</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {/* Free */}
+            <button
+              type="button"
+              onClick={() => setSelectedPlan("free")}
+              className={`p-4 border text-left transition-colors ${selectedPlan === "free" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50"}`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest">Free</p>
+                {selectedPlan === "free" && <Check className="h-4 w-4 text-primary shrink-0" />}
+              </div>
+              <p className="text-xl font-light">$0</p>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">5 watchlist items</p>
+            </button>
+
+            {/* Monthly */}
+            <button
+              type="button"
+              onClick={() => setSelectedPlan("monthly")}
+              className={`p-4 border text-left transition-colors relative ${selectedPlan === "monthly" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50"}`}
+            >
+              <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold tracking-widest py-0.5 px-2">
+                Popular
+              </div>
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest">Monthly</p>
+                {selectedPlan === "monthly" && <Check className="h-4 w-4 text-primary shrink-0" />}
+              </div>
+              <p className="text-xl font-light">$4.99<span className="text-xs text-muted-foreground">/mo</span></p>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">Unlimited watchlist</p>
+            </button>
+
+            {/* Annual */}
+            <button
+              type="button"
+              onClick={() => setSelectedPlan("annual")}
+              className={`p-4 border text-left transition-colors ${selectedPlan === "annual" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50"}`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest">Annual</p>
+                {selectedPlan === "annual" && <Check className="h-4 w-4 text-primary shrink-0" />}
+              </div>
+              <p className="text-xl font-light">$49.99<span className="text-xs text-muted-foreground">/yr</span></p>
+              <p className="text-xs text-primary mt-2 leading-relaxed">Save 17%</p>
+            </button>
+          </div>
+
+          {selectedPlan !== "free" && (
+            <p className="text-center text-xs text-muted-foreground">
+              You'll create your account first, then be redirected to checkout to complete your {selectedPlan} subscription.
+            </p>
+          )}
+
+          <div className="bg-card border border-border p-6 space-y-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <div className="text-muted-foreground flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-primary" /> Drop alerts
+              </div>
+              <div className="text-muted-foreground flex items-center gap-2">
+                <span className={`text-xs ${selectedPlan !== "free" ? "text-primary font-semibold" : ""}`}>
+                  {selectedPlan !== "free" ? "✓ Unlimited" : "Up to 5 items"}
+                </span>
+                <span className="text-xs"> watchlist</span>
+              </div>
+              <div className={`flex items-center gap-2 ${selectedPlan !== "free" ? "text-muted-foreground" : "text-muted-foreground/40 line-through"}`}>
+                <Check className={`h-3.5 w-3.5 ${selectedPlan !== "free" ? "text-primary" : "text-muted-foreground/30"}`} /> Full archive access
+              </div>
+              <div className={`flex items-center gap-2 ${selectedPlan !== "free" ? "text-muted-foreground" : "text-muted-foreground/40 line-through"}`}>
+                <Check className={`h-3.5 w-3.5 ${selectedPlan !== "free" ? "text-primary" : "text-muted-foreground/30"}`} /> Category tracking
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

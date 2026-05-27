@@ -18,6 +18,7 @@ function getResendClient() {
 
 const FROM_ALERTS = "Thursday Drop <onboarding@resend.dev>";
 const FROM_PICKS = "Thursday Drop <onboarding@resend.dev>";
+const BASE_URL = "https://thursdaydrop.ca";
 
 // ─── Shared email layout helpers ─────────────────────────────────────────────
 
@@ -30,7 +31,12 @@ function tableRow(label: string, value: string | null | undefined, valueColor = 
     </tr>`;
 }
 
-function emailWrapper(inner: string): string {
+function emailWrapper(inner: string, unsubscribeToken?: string | null): string {
+  const footerLinks = unsubscribeToken
+    ? `<a href="${BASE_URL}/account" style="color:#B8860B;opacity:0.7;">Manage your watchlist</a> &nbsp;·&nbsp;
+       <a href="${BASE_URL}/unsubscribe?token=${unsubscribeToken}" style="color:#B8860B;opacity:0.5;">Unsubscribe from Thursday Drop alerts</a>`
+    : `<a href="${BASE_URL}/account" style="color:#B8860B;opacity:0.7;">Manage your watchlist</a>`;
+
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -41,7 +47,7 @@ function emailWrapper(inner: string): string {
   <div style="border-top:1px solid rgba(242,235,217,0.1);margin-top:40px;padding-top:20px;">
     <p style="color:#F2EBD9;opacity:0.3;font-size:11px;font-family:sans-serif;line-height:1.6;margin:0;">
       You're receiving this because you added this wine to your Thursday Drop watchlist.<br>
-      <a href="https://thursdaydrop.ca/account" style="color:#B8860B;opacity:0.7;">Manage your watchlist</a>
+      ${footerLinks}
     </p>
   </div>
 </div>
@@ -50,7 +56,6 @@ function emailWrapper(inner: string): string {
 
 function formatReleaseDate(date: Date | null): string {
   if (!date) return "TBA";
-  // Convert stored UTC (13:30 UTC = 8:30am EST) to a readable Eastern date
   const d = new Date(date.getTime());
   return d.toLocaleDateString("en-CA", {
     timeZone: "America/Toronto",
@@ -82,6 +87,7 @@ function buildAnnouncementHtml(
     program_label?: string | null;
   },
   releaseOpensAt: Date | null,
+  unsubscribeToken?: string | null,
 ): string {
   const buyUrl =
     wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
@@ -110,7 +116,16 @@ function buildAnnouncementHtml(
     <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:14px 28px;text-decoration:none;font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">View on LCBO Vintages →</a>
   `;
 
-  return emailWrapper(inner);
+  return emailWrapper(inner, unsubscribeToken);
+}
+
+async function ensureUnsubscribeToken(profileId: string): Promise<string> {
+  const token = crypto.randomUUID();
+  await db
+    .update(profilesTable)
+    .set({ unsubscribe_token: token })
+    .where(eq(profilesTable.id, profileId));
+  return token;
 }
 
 export async function sendPendingAlerts(): Promise<{ sent: number }> {
@@ -133,6 +148,15 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
 
     if (!profile?.email) continue;
 
+    // Skip users who have unsubscribed
+    if (profile.alerts_enabled === false) {
+      await db
+        .update(alertsTable)
+        .set({ sent: true, sent_at: new Date() })
+        .where(eq(alertsTable.id, alert.id));
+      continue;
+    }
+
     const [wine] = await db
       .select()
       .from(winesTable)
@@ -147,6 +171,12 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
       .where(eq(releaseCyclesTable.id, wine.release_cycle_id))
       .limit(1);
 
+    // Ensure unsubscribe token exists for this user
+    let unsubToken = profile.unsubscribe_token;
+    if (!unsubToken) {
+      unsubToken = await ensureUnsubscribeToken(profile.id);
+    }
+
     try {
       await resend.emails.send({
         from: FROM_ALERTS,
@@ -155,6 +185,7 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
         html: buildAnnouncementHtml(
           { ...wine, program_label: cycle?.program_label ?? null },
           cycle?.release_opens_at ?? null,
+          unsubToken,
         ),
       });
 
@@ -188,7 +219,7 @@ function buildMorningHtml(wine: {
   qty_available: number | null;
   buy_url: string | null;
   program_label?: string | null;
-}): string {
+}, unsubscribeToken?: string | null): string {
   const buyUrl =
     wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
 
@@ -213,11 +244,10 @@ function buildMorningHtml(wine: {
     <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:14px 28px;text-decoration:none;font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order Now on LCBO Vintages →</a>
   `;
 
-  return emailWrapper(inner);
+  return emailWrapper(inner, unsubscribeToken);
 }
 
 export async function sendMorningAlerts(): Promise<{ sent: number }> {
-  // Find all alerts for wines whose release_opens_at is today (UTC calendar day)
   const todayUTC = new Date();
   todayUTC.setUTCHours(0, 0, 0, 0);
   const tomorrowUTC = new Date(todayUTC);
@@ -251,13 +281,22 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
   for (const row of due) {
     const { alert, wine, profile } = row;
     if (!profile?.email) continue;
+    if (profile.alerts_enabled === false) continue;
+
+    let unsubToken = profile.unsubscribe_token;
+    if (!unsubToken) {
+      unsubToken = await ensureUnsubscribeToken(profile.id);
+    }
 
     try {
       await resend.emails.send({
         from: FROM_ALERTS,
         to: profile.email,
         subject: `${wine.wine_name} opens for ordering in 90 minutes — act fast`,
-        html: buildMorningHtml({ ...wine, program_label: row.cycle?.program_label ?? null }),
+        html: buildMorningHtml(
+          { ...wine, program_label: row.cycle?.program_label ?? null },
+          unsubToken,
+        ),
       });
 
       await db
@@ -335,6 +374,13 @@ export async function sendWeeklyPicks(subject: string, body: string): Promise<{ 
 
   for (const profile of proProfiles) {
     if (!profile.email) continue;
+    if (profile.alerts_enabled === false) continue;
+
+    let unsubToken = profile.unsubscribe_token;
+    if (!unsubToken) {
+      unsubToken = await ensureUnsubscribeToken(profile.id);
+    }
+
     try {
       await resend.emails.send({
         from: FROM_PICKS,
@@ -343,7 +389,7 @@ export async function sendWeeklyPicks(subject: string, body: string): Promise<{ 
         html: emailWrapper(`
           <h1 style="color:#B8860B;font-size:20px;margin:0 0 24px;font-family:Georgia,serif;">Weekly Picks</h1>
           <div style="line-height:1.8;font-size:14px;font-family:Georgia,serif;white-space:pre-wrap;">${body}</div>
-        `),
+        `, unsubToken),
       });
       sent++;
     } catch (err) {

@@ -1,12 +1,12 @@
 import { useGetWatchlist, useAddToWatchlist, useRemoveFromWatchlist, getGetWatchlistQueryKey } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Wine, User, Calendar } from "lucide-react";
+import { Trash2, Wine, User, Calendar, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -52,13 +52,122 @@ function MatchBadge({ matchType }: { matchType: string }) {
   );
 }
 
+// ─── Watchlist categories ─────────────────────────────────────────────────────
+
+const ALL_CATEGORIES = [
+  "Burgundy Grand Cru",
+  "Burgundy Premier Cru",
+  "Brunello di Montalcino",
+  "Barolo and Barbaresco",
+  "Bordeaux First Growths",
+  "Champagne Prestige Cuvée",
+  "Napa Valley Cult Cabernet",
+  "Rhône Valley (Guigal La La wines)",
+  "Super Tuscans",
+  "Sauternes and Dessert wines",
+];
+
+function useCategories(token: string | null) {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchCategories = useCallback(async () => {
+    if (!token) return;
+    const res = await fetch("/api/watchlist/categories", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setCategories(data);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const toggle = async (category: string) => {
+    if (!token) return;
+    const isOn = categories.includes(category);
+    setLoading(true);
+    try {
+      if (isOn) {
+        await fetch(`/api/watchlist/categories/${encodeURIComponent(category)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCategories((prev) => prev.filter((c) => c !== category));
+      } else {
+        await fetch("/api/watchlist/categories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ category }),
+        });
+        setCategories((prev) => [...prev, category]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { categories, loading, toggle };
+}
+
+// ─── Suggested wines ──────────────────────────────────────────────────────────
+
+const SUGGESTED_WINES: { wine_name: string; producer: string; region: string }[] = [
+  { wine_name: "Ornellaia Bolgheri Superiore", producer: "Ornellaia", region: "Bolgheri, Tuscany" },
+  { wine_name: "Sassicaia Bolgheri", producer: "Tenuta San Guido", region: "Bolgheri, Tuscany" },
+  { wine_name: "Domaine de la Romanée-Conti Romanée-Conti", producer: "Domaine de la Romanée-Conti", region: "Burgundy" },
+  { wine_name: "Domaine de la Romanée-Conti La Tâche", producer: "Domaine de la Romanée-Conti", region: "Burgundy" },
+  { wine_name: "Domaine de la Romanée-Conti Richebourg", producer: "Domaine de la Romanée-Conti", region: "Burgundy" },
+  { wine_name: "Armand Rousseau Chambertin Grand Cru", producer: "Armand Rousseau", region: "Burgundy" },
+  { wine_name: "Domaine Leroy Bourgogne Rouge", producer: "Domaine Leroy", region: "Burgundy" },
+  { wine_name: "J-F Coche-Dury Meursault", producer: "J-F Coche-Dury", region: "Burgundy" },
+  { wine_name: "J-F Mugnier Chambolle-Musigny Les Amoureuses", producer: "J-F Mugnier", region: "Burgundy" },
+  { wine_name: "Domaine Leflaive Montrachet Grand Cru", producer: "Domaine Leflaive", region: "Burgundy" },
+  { wine_name: "Giacomo Conterno Barolo Monfortino", producer: "Giacomo Conterno", region: "Piedmont" },
+  { wine_name: "Gaja Barbaresco", producer: "Angelo Gaja", region: "Piedmont" },
+  { wine_name: "Guigal Côte-Rôtie La Landonne", producer: "E. Guigal", region: "Rhône Valley" },
+  { wine_name: "Jean-Louis Chave Hermitage", producer: "Jean-Louis Chave", region: "Rhône Valley" },
+  { wine_name: "Krug Clos du Mesnil", producer: "Krug", region: "Champagne" },
+  { wine_name: "Salon Blanc de Blancs", producer: "Salon", region: "Champagne" },
+  { wine_name: "Christian Serafin Gevrey-Chambertin Vieilles Vignes", producer: "Christian Serafin", region: "Burgundy" },
+  { wine_name: "Domaine Ponsot Clos Saint-Denis Grand Cru", producer: "Domaine Ponsot", region: "Burgundy" },
+  { wine_name: "Domaine Dujac Clos de la Roche Grand Cru", producer: "Domaine Dujac", region: "Burgundy" },
+  { wine_name: "Henri Bonneau Châteauneuf-du-Pape Réserve des Célestins", producer: "Henri Bonneau", region: "Rhône Valley" },
+  { wine_name: "Château Rayas Châteauneuf-du-Pape", producer: "Château Rayas", region: "Rhône Valley" },
+  { wine_name: "Giacomo Conterno Barolo Cascina Francia", producer: "Giacomo Conterno", region: "Piedmont" },
+  { wine_name: "Georges Roumier Chambolle-Musigny Les Amoureuses", producer: "Georges Roumier", region: "Burgundy" },
+  { wine_name: "Jean-Marie Fourrier Gevrey-Chambertin Vieilles Vignes", producer: "Jean-Marie Fourrier", region: "Burgundy" },
+  { wine_name: "Domaine Leflaive Puligny-Montrachet Les Pucelles", producer: "Domaine Leflaive", region: "Burgundy" },
+  { wine_name: "Hubert Lignier Clos de la Roche Grand Cru", producer: "Hubert Lignier", region: "Burgundy" },
+  { wine_name: "Méo-Camuzet Vosne-Romanée", producer: "Méo-Camuzet", region: "Burgundy" },
+  { wine_name: "Comte Liger-Belair La Romanée Grand Cru", producer: "Comte Liger-Belair", region: "Burgundy" },
+  { wine_name: "Prieuré Roch Nuits-Saint-Georges", producer: "Prieuré Roch", region: "Burgundy" },
+  { wine_name: "Billecart-Salmon Clos Saint-Hilaire", producer: "Billecart-Salmon", region: "Champagne" },
+  { wine_name: "Jacques Selosse Substance", producer: "Jacques Selosse", region: "Champagne" },
+  { wine_name: "Peter Michael Les Pavots", producer: "Peter Michael Winery", region: "Napa Valley, California" },
+  { wine_name: "Screaming Eagle Cabernet Sauvignon", producer: "Screaming Eagle", region: "Napa Valley, California" },
+  { wine_name: "Harlan Estate", producer: "Harlan Estate", region: "Napa Valley, California" },
+  { wine_name: "Opus One", producer: "Opus One Winery", region: "Napa Valley, California" },
+  { wine_name: "Dominus Estate", producer: "Dominus Estate", region: "Napa Valley, California" },
+  { wine_name: "Pétrus", producer: "Pétrus", region: "Pomerol, Bordeaux" },
+  { wine_name: "Le Pin", producer: "Le Pin", region: "Pomerol, Bordeaux" },
+  { wine_name: "Château Lafleur", producer: "Château Lafleur", region: "Pomerol, Bordeaux" },
+  { wine_name: "Château Léoville-Las Cases", producer: "Château Léoville-Las Cases", region: "St-Julien, Bordeaux" },
+  { wine_name: "Château Palmer", producer: "Château Palmer", region: "Margaux, Bordeaux" },
+  { wine_name: "Château d'Yquem", producer: "Château d'Yquem", region: "Sauternes" },
+];
+
 export default function Watchlist() {
-  const { profile } = useAuth();
+  const { profile, token } = useAuth();
   const { data: watchlist, isLoading } = useGetWatchlist();
   const addToWatchlist = useAddToWatchlist();
   const removeFromWatchlist = useRemoveFromWatchlist();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { categories, loading: catLoading, toggle: toggleCategory } = useCategories(token);
 
   const [mode, setMode] = useState<Mode>("exact");
   const [wineName, setWineName] = useState("");
@@ -88,19 +197,10 @@ export default function Watchlist() {
     }
 
     addToWatchlist.mutate(
-      {
-        data: {
-          wine_name,
-          vintage: payload_vintage,
-          producer: payload_producer,
-          match_type: mode,
-        }
-      },
+      { data: { wine_name, vintage: payload_vintage, producer: payload_producer, match_type: mode } },
       {
         onSuccess: () => {
-          setWineName("");
-          setVintage("");
-          setProducer("");
+          setWineName(""); setVintage(""); setProducer("");
           queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
           const labels: Record<Mode, string> = {
             exact: "Wine added — exact match",
@@ -129,6 +229,27 @@ export default function Watchlist() {
     );
   };
 
+  const quickAdd = (wine: typeof SUGGESTED_WINES[0], matchMode: "wine" | "producer") => {
+    const payload =
+      matchMode === "producer"
+        ? { wine_name: wine.producer, producer: wine.producer, match_type: "producer" as const }
+        : { wine_name: wine.wine_name, match_type: "wine" as const };
+
+    addToWatchlist.mutate(
+      { data: payload },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
+          toast({ title: matchMode === "producer" ? `Tracking ${wine.producer}` : `Tracking ${wine.wine_name}` });
+        },
+        onError: (err: any) => {
+          const msg = err?.data?.error || "Failed to add item.";
+          toast({ title: "Error", description: msg, variant: "destructive" });
+        }
+      }
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader
@@ -142,6 +263,7 @@ export default function Watchlist() {
       />
       <div className="max-w-4xl mx-auto px-6 py-10 space-y-12">
 
+        {/* Add New Target */}
         <div className="bg-card p-6 border border-border space-y-6">
           <h2 className="font-serif text-2xl">Add New Target</h2>
 
@@ -165,53 +287,23 @@ export default function Watchlist() {
             {mode === "exact" && (
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
-                  <Input
-                    placeholder="Wine name (e.g., Rousseau Chambertin)"
-                    value={wineName}
-                    onChange={e => setWineName(e.target.value)}
-                    required
-                    className="bg-background rounded-none border-border"
-                  />
+                  <Input placeholder="Wine name (e.g., Rousseau Chambertin)" value={wineName} onChange={e => setWineName(e.target.value)} required className="bg-background rounded-none border-border" />
                 </div>
                 <div className="w-full md:w-32">
-                  <Input
-                    placeholder="Vintage"
-                    value={vintage}
-                    onChange={e => setVintage(e.target.value)}
-                    maxLength={4}
-                    className="bg-background rounded-none border-border font-mono"
-                  />
+                  <Input placeholder="Vintage" value={vintage} onChange={e => setVintage(e.target.value)} maxLength={4} className="bg-background rounded-none border-border font-mono" />
                 </div>
               </div>
             )}
-
             {mode === "wine" && (
-              <Input
-                placeholder="Wine name (e.g., Rousseau Chambertin)"
-                value={wineName}
-                onChange={e => setWineName(e.target.value)}
-                required
-                className="bg-background rounded-none border-border"
-              />
+              <Input placeholder="Wine name (e.g., Rousseau Chambertin)" value={wineName} onChange={e => setWineName(e.target.value)} required className="bg-background rounded-none border-border" />
             )}
-
             {mode === "producer" && (
-              <Input
-                placeholder="Producer or label (e.g., Armand Rousseau, DRC)"
-                value={producer}
-                onChange={e => setProducer(e.target.value)}
-                required
-                className="bg-background rounded-none border-border"
-              />
+              <Input placeholder="Producer or label (e.g., Armand Rousseau, DRC)" value={producer} onChange={e => setProducer(e.target.value)} required className="bg-background rounded-none border-border" />
             )}
 
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">{MODE_CONFIG[mode].hint}</p>
-              <Button
-                type="submit"
-                disabled={isAtLimit || addToWatchlist.isPending}
-                className="rounded-none font-bold tracking-widest uppercase px-8 shrink-0"
-              >
+              <Button type="submit" disabled={isAtLimit || addToWatchlist.isPending} className="rounded-none font-bold tracking-widest uppercase px-8 shrink-0">
                 {addToWatchlist.isPending ? "Adding..." : "Add"}
               </Button>
             </div>
@@ -222,6 +314,56 @@ export default function Watchlist() {
           )}
         </div>
 
+        {/* Category Tracking (Pro only) */}
+        <div className="bg-card border border-border p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-serif text-2xl">Track by Category</h2>
+              <p className="text-sm text-muted-foreground mt-1">Get alerted when any wine in these categories drops.</p>
+            </div>
+            {!profile?.is_pro && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border px-3 py-1.5">
+                <Lock className="h-3 w-3" /> Pro only
+              </span>
+            )}
+          </div>
+
+          {profile?.is_pro ? (
+            <div className="flex flex-wrap gap-2">
+              {ALL_CATEGORIES.map((cat) => {
+                const isOn = categories.includes(cat);
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleCategory(cat)}
+                    disabled={catLoading}
+                    className={`px-4 py-2 text-xs font-medium tracking-wider uppercase border transition-colors ${
+                      isOn
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {ALL_CATEGORIES.map((cat) => (
+                <span key={cat} className="px-4 py-2 text-xs font-medium tracking-wider uppercase border border-border text-muted-foreground/40 cursor-not-allowed select-none">
+                  {cat}
+                </span>
+              ))}
+              <div className="w-full pt-2">
+                <a href="/pricing" className="text-xs text-primary hover:underline">Upgrade to Pro to enable category tracking →</a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Watchlist table */}
         <div className="border border-border bg-card">
           <Table>
             <TableHeader className="bg-background">
@@ -255,18 +397,10 @@ export default function Watchlist() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <MatchBadge matchType={item.match_type} />
-                    </TableCell>
+                    <TableCell><MatchBadge matchType={item.match_type} /></TableCell>
                     <TableCell>{item.producer || '—'}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemove(item.id)}
-                        disabled={removeFromWatchlist.isPending}
-                        className="h-8 w-8 rounded-none hover:text-destructive hover:bg-destructive/10"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleRemove(item.id)} disabled={removeFromWatchlist.isPending} className="h-8 w-8 rounded-none hover:text-destructive hover:bg-destructive/10">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -276,6 +410,51 @@ export default function Watchlist() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Suggested Wines */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="font-serif text-3xl text-primary mb-1">Suggested Wines</h2>
+            <p className="text-muted-foreground text-sm">The most sought-after LCBO Vintages wines — add any to your watchlist.</p>
+          </div>
+
+          {isAtLimit && !profile?.is_pro && (
+            <div className="bg-card border border-primary/30 px-4 py-3 text-sm text-muted-foreground">
+              You've reached the 5-item free limit. <a href="/pricing" className="text-primary hover:underline">Upgrade to Pro</a> for unlimited tracking.
+            </div>
+          )}
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {SUGGESTED_WINES.map((wine) => (
+              <div key={wine.wine_name} className="bg-card border border-border p-5 space-y-4">
+                <div>
+                  <p className="font-serif text-base text-foreground leading-tight">{wine.wine_name}</p>
+                  <p className="text-xs text-primary mt-1">{wine.producer}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{wine.region}</p>
+                </div>
+                <div className="flex gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => quickAdd(wine, "wine")}
+                    disabled={addToWatchlist.isPending || isAtLimit}
+                    className="text-xs px-3 py-1.5 border border-border hover:border-primary/60 text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    This Wine
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => quickAdd(wine, "producer")}
+                    disabled={addToWatchlist.isPending || isAtLimit}
+                    className="text-xs px-3 py-1.5 border border-border hover:border-primary/60 text-muted-foreground hover:text-foreground uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Producer
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );

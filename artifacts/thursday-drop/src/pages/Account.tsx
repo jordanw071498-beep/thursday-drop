@@ -140,7 +140,7 @@ export default function Account() {
               ) : cancelConfirm ? (
                 <div className="space-y-4">
                   <p className="text-sm text-foreground">
-                    Are you sure you want to cancel? You'll lose Pro access immediately.
+                    Are you sure? You will lose Pro access at the end of your billing period.
                   </p>
                   <div className="flex gap-3">
                     <Button
