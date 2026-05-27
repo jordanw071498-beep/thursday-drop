@@ -247,22 +247,23 @@ export default function Signup() {
             </p>
           )}
 
-          <div className="bg-card border border-border p-6 space-y-3">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <div className="text-muted-foreground flex items-center gap-2">
-                <Check className="h-3.5 w-3.5 text-primary" /> Drop alerts
+          <div className="bg-card border border-border p-6">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                Drop alerts
               </div>
-              <div className="text-muted-foreground flex items-center gap-2">
-                <span className={`text-xs ${selectedPlan !== "free" ? "text-primary font-semibold" : ""}`}>
-                  {selectedPlan !== "free" ? "✓ Unlimited" : "Up to 5 items"}
-                </span>
-                <span className="text-xs"> watchlist</span>
+              <div className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                {selectedPlan !== "free" ? "Unlimited watchlist" : "Up to 5 items"}
               </div>
-              <div className={`flex items-center gap-2 ${selectedPlan !== "free" ? "text-muted-foreground" : "text-muted-foreground/40 line-through"}`}>
-                <Check className={`h-3.5 w-3.5 ${selectedPlan !== "free" ? "text-primary" : "text-muted-foreground/30"}`} /> Full archive access
+              <div className={`flex items-center gap-2 ${selectedPlan === "free" ? "opacity-35 line-through" : ""}`}>
+                <Check className={`h-3.5 w-3.5 shrink-0 ${selectedPlan !== "free" ? "text-primary" : "text-muted-foreground"}`} />
+                Full archive access
               </div>
-              <div className={`flex items-center gap-2 ${selectedPlan !== "free" ? "text-muted-foreground" : "text-muted-foreground/40 line-through"}`}>
-                <Check className={`h-3.5 w-3.5 ${selectedPlan !== "free" ? "text-primary" : "text-muted-foreground/30"}`} /> Category tracking
+              <div className={`flex items-center gap-2 ${selectedPlan === "free" ? "opacity-35 line-through" : ""}`}>
+                <Check className={`h-3.5 w-3.5 shrink-0 ${selectedPlan !== "free" ? "text-primary" : "text-muted-foreground"}`} />
+                Category tracking
               </div>
             </div>
           </div>
