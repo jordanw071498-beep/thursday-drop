@@ -59,6 +59,26 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Founder Story */}
+      <section className="px-6 py-20 bg-background border-b border-border">
+        <div className="max-w-2xl mx-auto">
+          <div className="border-l-2 border-primary pl-8 space-y-5">
+            <p className="font-serif italic text-lg md:text-xl text-foreground/80 leading-relaxed">
+              I built Thursday Drop for myself.
+            </p>
+            <p className="font-serif italic text-base md:text-lg text-foreground/70 leading-relaxed">
+              I kept missing Vintages drops. Not because I wasn't interested — because I'm busy. I wasn't going to check vintagesshoponline.com every Thursday morning to see if my favourite wines had come in. And by the time I remembered to look, it was gone.
+            </p>
+            <p className="font-serif italic text-base md:text-lg text-foreground/70 leading-relaxed">
+              So I built something that watches for me. Thursday Drop tracks every LCBO Vintages release — Special Offers, Monthly Features, Bordeaux Futures — and sends me a personal email the moment anything on my list appears. I thought other collectors might find it useful too.
+            </p>
+            <p className="font-serif text-sm text-primary tracking-wide mt-6">
+              — Jordan, Toronto
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* How it Works */}
       <section className="px-6 py-24 bg-background">
         <div className="max-w-7xl mx-auto">
@@ -84,6 +104,36 @@ export default function Landing() {
               <p className="text-muted-foreground">Receive a personal email alert the moment a match drops, giving you the edge before bottles sell out.</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="px-6 py-24 bg-card border-y border-border">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-px bg-border">
+          {[
+            {
+              quote: "I manage the wine program for two restaurants in Toronto. I used to waste time going through the Vintages release every week looking for specific bottles. Now I have a list of 20-25 wines that we always try to source and Thursday Drop tells me when any of them show up. It has saved me hours and we haven't missed an allocation since.",
+              attribution: "Restaurant Wine Director, Toronto",
+            },
+            {
+              quote: "I collect serious Burgundy — Grand Cru only. I got so tired of the generic Vintages email blast every week. Thursday Drop only alerts me when something I actually care about is available.",
+              attribution: "Private Collector, Toronto",
+            },
+            {
+              quote: "I genuinely do not have time to monitor Vintages every week. I added about 20 wines to my watchlist and forgot about it. The $5 per month is worth it so that I don't have to look through my email every Thursday.",
+              attribution: "Subscriber, Ottawa",
+            },
+          ].map((t) => (
+            <div key={t.attribution} className="bg-card px-8 py-10 flex flex-col gap-6">
+              <span className="font-serif text-5xl leading-none text-primary select-none">&ldquo;</span>
+              <p className="font-serif italic text-foreground/75 text-base leading-relaxed flex-1 -mt-4">
+                {t.quote}
+              </p>
+              <p className="text-xs font-sans uppercase tracking-[0.15em] text-muted-foreground">
+                {t.attribution}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 

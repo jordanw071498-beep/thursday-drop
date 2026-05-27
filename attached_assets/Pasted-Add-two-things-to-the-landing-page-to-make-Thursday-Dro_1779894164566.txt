@@ -1,0 +1,14 @@
+Add two things to the landing page to make Thursday Drop feel established and trustworthy:
+1. Founder story section - add a personal note section between the hero and the how it works section. Style it as a pull quote or editorial note, not a formal about section. The copy should read:
+'I built Thursday Drop for myself.
+I kept missing Vintages drops. Not because I wasn't interested — because I'm busy. I wasn't going to check vintagesshoponline.com every Thursday morning to see if my favourite wines had come in. And by the time I remembered to look, it was gone.
+So I built something that watches for me. Thursday Drop tracks every LCBO Vintages release — Special Offers, Monthly Features, Bordeaux Futures — and sends me a personal email the moment anything on my list appears. I thought other collectors might find it useful too.
+— Jordan, Toronto'
+Style this as dark cream text on a slightly lighter burgundy card, with a thin gold left border. Playfair Display italic for the body, small serif signature for the name. Keep it understated and genuine — not a marketing section.
+2. Testimonials section — add three testimonials below the how it works section. Display them as three cards side by side. Use these exact testimonials:
+Testimonial 1: Quote: 'I manage the wine program for two restaurants in Toronto. I used to waste time going through the Vintages release every week looking for specific bottles. Now I have a list of 20-25 wines that we always try to source and Thursday Drop tells me when any of them show up. It has saved me hours and we haven't missed an allocation since.' Attribution: Restaurant Wine Director, Toronto
+Testimonial 2: Quote: 'I collect serious Burgundy — Grand Cru only. I got so tired of the generic Vintages email blast every week. Thursday Drop only alerts me when something I actually care about is available.' Attribution: Private Collector, Toronto
+Testimonial 3: Quote: 'I genuinely do not have time to monitor Vintages every week. I added about 20 wines to my watchlist and forgot about it. The $5 per month is worth it to so that I don't have to look through my email every Thursday.' Attribution: Subscriber, Ottawa
+Style the testimonials as clean cards with a gold opening quotation mark in large Playfair Display, the quote in EB Garamond italic, and the attribution in small uppercase Jost. Dark background, gold accents, consistent with the site aesthetic.
+
+Style as two items separated by thin gold vertical dividers, small uppercase text, centered. This gives immediate credibility without fake numbers.
