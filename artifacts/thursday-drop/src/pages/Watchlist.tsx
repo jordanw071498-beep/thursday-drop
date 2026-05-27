@@ -464,7 +464,7 @@ export default function Watchlist() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {SUGGESTED_WINES.map((wine) => (
-              <div key={wine.wine_name} className="bg-card border border-border p-5 space-y-4">
+              <div key={wine.wine_name} className="bg-card border border-border p-5 flex flex-col justify-between gap-4 min-h-[130px]">
                 <div>
                   <p className="font-serif text-base text-foreground leading-tight">{wine.wine_name}</p>
                   <p className="text-xs text-primary mt-1">{wine.producer}</p>
