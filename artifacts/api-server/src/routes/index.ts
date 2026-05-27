@@ -10,12 +10,14 @@ import stripeRouter from "./stripe";
 import adminRouter from "./admin";
 import scrapeRouter from "./scrape";
 import morningAlertsRouter from "./morning-alerts";
+import accountRouter from "./account";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(profileRouter);
+router.use(accountRouter);
 router.use(releasesRouter);
 router.use(winesRouter);
 router.use(watchlistRouter);

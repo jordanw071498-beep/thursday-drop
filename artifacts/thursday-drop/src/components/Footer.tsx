@@ -19,29 +19,35 @@ export function Footer() {
       {/* Bottom row — legal */}
       <div className="border-t border-border/50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          {/* Left: copyright + links */}
           <div className="flex flex-col gap-1.5 shrink-0">
             <span style={{ fontSize: "0.7rem" }} className="text-muted-foreground/50">
               © {new Date().getFullYear()} Thursday Drop. All rights reserved.
             </span>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/terms"
-                style={{ fontSize: "0.65rem" }}
-                className="text-muted-foreground/40 hover:text-primary transition-colors uppercase tracking-wider"
-              >
-                Terms of Service
-              </Link>
-              <span style={{ fontSize: "0.65rem" }} className="text-muted-foreground/25">·</span>
-              <Link
-                href="/privacy"
-                style={{ fontSize: "0.65rem" }}
-                className="text-muted-foreground/40 hover:text-primary transition-colors uppercase tracking-wider"
-              >
-                Privacy Policy
-              </Link>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {[
+                { href: "/faq", label: "FAQ" },
+                { href: "/contact", label: "Contact" },
+                { href: "/terms", label: "Terms of Service" },
+                { href: "/privacy", label: "Privacy Policy" },
+              ].map((link, i, arr) => (
+                <span key={link.href} className="flex items-center gap-3">
+                  <Link
+                    href={link.href}
+                    style={{ fontSize: "0.65rem" }}
+                    className="text-muted-foreground/40 hover:text-primary transition-colors uppercase tracking-wider"
+                  >
+                    {link.label}
+                  </Link>
+                  {i < arr.length - 1 && (
+                    <span style={{ fontSize: "0.65rem" }} className="text-muted-foreground/25">·</span>
+                  )}
+                </span>
+              ))}
             </div>
           </div>
 
+          {/* Center: legal disclaimer */}
           <p
             style={{ fontSize: "0.6rem" }}
             className="text-muted-foreground/40 text-center max-w-xl leading-relaxed"
@@ -49,6 +55,7 @@ export function Footer() {
             Thursday Drop is an independent service and is not affiliated with, endorsed by, or connected to the LCBO, the Liquor Control Board of Ontario, or the Vintages program in any way. All product names, trademarks, and release information remain the property of their respective owners.
           </p>
 
+          {/* Right */}
           <span style={{ fontSize: "0.7rem" }} className="text-muted-foreground/50 shrink-0 whitespace-nowrap">
             Built in Toronto, Ontario
           </span>

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useGetSubscriptionInfo, useCancelSubscription, useCreateCheckout } from "@workspace/api-client-react";
 import { useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, AlertTriangle } from "lucide-react";
 
 export default function Account() {
   const { profile, signOut, refreshProfile } = useAuth();
@@ -13,6 +13,9 @@ export default function Account() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: subInfo, refetch: refetchSubInfo } = useGetSubscriptionInfo();
@@ -28,6 +31,28 @@ export default function Account() {
   });
 
   const createCheckout = useCreateCheckout();
+
+  const handleDeleteAccount = async () => {
+    if (!profile) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const storedToken = localStorage.getItem("thursday_drop_token");
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete account.");
+      }
+      signOut();
+      setLocation("/?deleted=1");
+    } catch (err: any) {
+      setDeleteError(err.message || "Something went wrong. Please try again.");
+      setDeleteLoading(false);
+    }
+  };
 
   const handleSubscribe = (plan: "monthly" | "annual") => {
     if (!profile) {
@@ -278,6 +303,24 @@ export default function Account() {
         </div>
       </div>
 
+      {/* Data & Privacy */}
+      <div className="max-w-2xl mx-auto px-6 pb-0">
+        <div className="border border-border bg-card p-6 space-y-4">
+          <h2 className="font-serif text-xl text-foreground">Data &amp; Privacy</h2>
+          <p className="text-sm text-muted-foreground">
+            You can permanently delete your account and all associated personal data at any time. Your watchlist preferences will be retained in anonymized form with no link to your identity, as described in our{" "}
+            <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>.
+          </p>
+          <Button
+            variant="outline"
+            className="rounded-none font-bold tracking-widest uppercase border-destructive/40 text-destructive hover:bg-destructive hover:text-white hover:border-destructive transition-colors"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            Delete My Account
+          </Button>
+        </div>
+      </div>
+
       {/* Help & Support */}
       <div className="max-w-2xl mx-auto px-6 pb-12">
         <div className="border border-border bg-card p-6 space-y-4">
@@ -307,6 +350,46 @@ export default function Account() {
           </div>
         </div>
       </div>
+
+      {/* Delete account confirmation modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70"
+          onClick={(e) => { if (e.target === e.currentTarget && !deleteLoading) setShowDeleteConfirm(false); }}
+        >
+          <div className="bg-background border border-border p-8 max-w-sm w-full mx-4 space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                <h3 className="font-serif text-2xl text-foreground">Delete account?</h3>
+              </div>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                This will permanently delete your account and all your data. This cannot be undone.
+              </p>
+              {deleteError && (
+                <p className="text-destructive text-sm">{deleteError}</p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 rounded-none font-bold tracking-widest uppercase bg-destructive hover:bg-destructive/90 text-white border-0"
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? "Deleting…" : "Yes, Delete"}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 rounded-none font-bold tracking-widest uppercase border-border"
+                onClick={() => { setShowDeleteConfirm(false); setDeleteError(null); }}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sign-out confirmation modal */}
       {showSignOutConfirm && (

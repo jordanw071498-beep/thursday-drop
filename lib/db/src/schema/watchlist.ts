@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 export const watchlistItemsTable = pgTable("watchlist_items", {
   id: serial("id").primaryKey(),
-  user_id: text("user_id").notNull(),
+  user_id: text("user_id"),
   wine_name: text("wine_name").notNull(),
   vintage: text("vintage"),
   producer: text("producer"),

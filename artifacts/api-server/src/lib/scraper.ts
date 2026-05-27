@@ -350,7 +350,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number>
         }
       }
 
-      if (matches) {
+      if (matches && item.user_id) {
         try {
           await db
             .insert(alertsTable)

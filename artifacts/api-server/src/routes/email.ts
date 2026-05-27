@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import { db, emailSubscribersTable } from "@workspace/db";
 import { EmailSubscribeBody } from "@workspace/api-zod";
 import { Resend } from "resend";
-import { z } from "zod/v4";
 
 const router: IRouter = Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -27,20 +26,17 @@ router.post("/email/subscribe", async (req, res): Promise<void> => {
   res.json({ success: true, message: "Subscribed successfully" });
 });
 
-const ContactBody = z.object({
-  name: z.string().min(1).max(200),
-  email: z.email(),
-  message: z.string().min(1).max(5000),
-});
-
 router.post("/contact", async (req, res): Promise<void> => {
-  const parsed = ContactBody.safeParse(req.body);
-  if (!parsed.success) {
+  const { name, email, message } = req.body ?? {};
+
+  if (
+    typeof name !== "string" || name.trim().length === 0 ||
+    typeof email !== "string" || !email.includes("@") ||
+    typeof message !== "string" || message.trim().length === 0
+  ) {
     res.status(400).json({ error: "Invalid request." });
     return;
   }
-
-  const { name, email, message } = parsed.data;
 
   try {
     await resend.emails.send({
