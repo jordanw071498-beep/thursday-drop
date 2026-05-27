@@ -1,12 +1,9 @@
 import { Link } from "wouter";
 
-const FOOTER_LINK =
-  "text-xs tracking-[0.12em] uppercase text-muted-foreground hover:text-primary transition-colors whitespace-nowrap";
-
 export function Footer() {
   return (
     <footer className="border-t border-border bg-background mt-auto">
-      {/* Top row */}
+      {/* Top row — logo + social proof */}
       <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <Link
           href="/"
@@ -14,26 +11,47 @@ export function Footer() {
         >
           Thursday Drop
         </Link>
-
-        <nav className="flex flex-wrap items-center justify-center gap-5">
-          <Link href="/release" className={FOOTER_LINK}>Release</Link>
-          <Link href="/history" className={FOOTER_LINK}>History</Link>
-          <Link href="/pricing" className={FOOTER_LINK}>Pricing</Link>
-          <Link href="/faq" className={FOOTER_LINK}>FAQ</Link>
-          <Link href="/contact" className={FOOTER_LINK}>Contact</Link>
-        </nav>
-
         <p className="text-xs text-muted-foreground/60 text-center md:text-right whitespace-nowrap">
           Trusted by serious LCBO collectors
         </p>
       </div>
 
-      {/* Bottom row */}
+      {/* Bottom row — legal */}
       <div className="border-t border-border/50">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-muted-foreground/50">
-          <span>© {new Date().getFullYear()} Thursday Drop</span>
-          <span className="text-center">Not affiliated with LCBO or Vintages</span>
-          <span>Built in Toronto</span>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <span style={{ fontSize: "0.7rem" }} className="text-muted-foreground/50">
+              © {new Date().getFullYear()} Thursday Drop. All rights reserved.
+            </span>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/terms"
+                style={{ fontSize: "0.65rem" }}
+                className="text-muted-foreground/40 hover:text-primary transition-colors uppercase tracking-wider"
+              >
+                Terms of Service
+              </Link>
+              <span style={{ fontSize: "0.65rem" }} className="text-muted-foreground/25">·</span>
+              <Link
+                href="/privacy"
+                style={{ fontSize: "0.65rem" }}
+                className="text-muted-foreground/40 hover:text-primary transition-colors uppercase tracking-wider"
+              >
+                Privacy Policy
+              </Link>
+            </div>
+          </div>
+
+          <p
+            style={{ fontSize: "0.6rem" }}
+            className="text-muted-foreground/40 text-center max-w-xl leading-relaxed"
+          >
+            Thursday Drop is an independent service and is not affiliated with, endorsed by, or connected to the LCBO, the Liquor Control Board of Ontario, or the Vintages program in any way. All product names, trademarks, and release information remain the property of their respective owners.
+          </p>
+
+          <span style={{ fontSize: "0.7rem" }} className="text-muted-foreground/50 shrink-0 whitespace-nowrap">
+            Built in Toronto, Ontario
+          </span>
         </div>
       </div>
     </footer>

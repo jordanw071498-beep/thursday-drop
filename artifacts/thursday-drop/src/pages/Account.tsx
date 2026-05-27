@@ -278,6 +278,36 @@ export default function Account() {
         </div>
       </div>
 
+      {/* Help & Support */}
+      <div className="max-w-2xl mx-auto px-6 pb-12">
+        <div className="border border-border bg-card p-6 space-y-4">
+          <h2 className="font-serif text-xl text-foreground">Help &amp; Support</h2>
+          <p className="text-sm text-muted-foreground">
+            Have a question about your account, a billing issue, or want to suggest a feature?
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <a
+              href="/faq"
+              className="flex-1 text-center text-xs font-medium tracking-widest uppercase border border-border px-5 py-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+            >
+              View FAQ
+            </a>
+            <a
+              href="/contact"
+              className="flex-1 text-center text-xs font-medium tracking-widest uppercase border border-border px-5 py-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+            >
+              Contact Us
+            </a>
+            <a
+              href="mailto:hello@thursdaydrop.ca"
+              className="flex-1 text-center text-xs font-medium tracking-widest uppercase border border-border px-5 py-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+            >
+              hello@thursdaydrop.ca
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Sign-out confirmation modal */}
       {showSignOutConfirm && (
         <div

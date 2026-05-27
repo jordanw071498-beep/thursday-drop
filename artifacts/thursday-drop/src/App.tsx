@@ -22,6 +22,8 @@ import AdminLogin from "@/pages/AdminLogin";
 import Unsubscribe from "@/pages/Unsubscribe";
 import FAQ from "@/pages/FAQ";
 import Contact from "@/pages/Contact";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,8 @@ function Router() {
           <Route path="/unsubscribe" component={Unsubscribe} />
           <Route path="/faq" component={FAQ} />
           <Route path="/contact" component={Contact} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/privacy" component={Privacy} />
 
           {/* Protected Routes */}
           <Route path="/history">
