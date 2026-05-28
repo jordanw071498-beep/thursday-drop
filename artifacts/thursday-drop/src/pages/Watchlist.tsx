@@ -302,12 +302,12 @@ export default function Watchlist() {
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={`flex flex-1 items-center justify-center gap-1.5 px-3 sm:px-5 py-2.5 text-xs sm:text-sm font-medium tracking-wider uppercase transition-colors min-w-0 ${
+                className={`flex flex-1 items-center justify-center gap-1.5 px-2 sm:px-5 py-2.5 text-xs sm:text-sm font-medium tracking-wide sm:tracking-wider uppercase transition-colors ${
                   mode === m ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {MODE_CONFIG[m].icon}
-                <span className="truncate">{MODE_CONFIG[m].label}</span>
+                <span className="hidden sm:flex shrink-0">{MODE_CONFIG[m].icon}</span>
+                {MODE_CONFIG[m].label}
               </button>
             ))}
           </div>
