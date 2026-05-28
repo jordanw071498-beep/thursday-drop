@@ -118,19 +118,18 @@ async function buildAll() {
 
   // ── Vercel serverless bundle (exports Express app, no listen) ───────────
   // Output goes to <repo-root>/api-build/ — api/index.ts imports from there.
-  // Using a separate directory keeps api/ clean (only index.ts lives there).
+  // CJS format so Vercel's compiled api/index.js (CJS) can require() it.
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/vercel.ts")],
     platform: "node",
     bundle: true,
-    format: "esm",
+    format: "cjs",
     outdir: path.resolve(repoRoot, "api-build"),
-    outExtension: { ".js": ".mjs" },
+    outExtension: { ".js": ".cjs" },
     logLevel: "info",
     external,
     sourcemap: false,
     plugins: [esbuildPluginPino({ transports: ["pino-pretty"] })],
-    banner: { js: cjsBanner.js },
   });
 }
 
