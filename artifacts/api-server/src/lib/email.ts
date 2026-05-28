@@ -16,8 +16,8 @@ function getResendClient() {
   return new Resend(apiKey);
 }
 
-const FROM_ALERTS = "Thursday Drop <alerts@thursdaydrop.ca>";
-const FROM_PICKS = "Thursday Drop <alerts@thursdaydrop.ca>";
+const FROM_ALERTS = "Thursday Drop <onboarding@resend.dev>";
+const FROM_PICKS = "Thursday Drop <onboarding@resend.dev>";
 const BASE_URL = "https://thursdaydrop.ca";
 
 // ─── Shared email layout helpers ─────────────────────────────────────────────
