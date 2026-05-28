@@ -24,10 +24,11 @@ export default function AdminLogin() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { /* non-JSON response */ }
 
       if (!res.ok) {
-        setError(data.error ?? "Login failed");
+        setError(data.error ?? `Server error (${res.status}). Please try again.`);
         return;
       }
 
