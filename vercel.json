@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "pnpm install --config.minimumReleaseAge=0",
-  "buildCommand": "pnpm run typecheck:libs && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/thursday-drop run build",
+  "buildCommand": "pnpm -w run typecheck:libs && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/thursday-drop run build",
   "outputDirectory": "artifacts/thursday-drop/dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
