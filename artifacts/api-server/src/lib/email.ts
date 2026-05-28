@@ -359,6 +359,35 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   return { sent, responses };
 }
 
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+export async function sendPasswordResetEmail(toEmail: string, resetToken: string): Promise<void> {
+  const resend = getResendClient();
+  const resetUrl = `${BASE_URL}/reset-password?token=${resetToken}`;
+
+  const inner = `
+    <h1 style="color:#F2EBD9;font-size:24px;line-height:1.3;margin:0 0 12px;font-family:Georgia,serif;">Reset your password</h1>
+    <p style="color:#F2EBD9;opacity:0.75;font-size:14px;font-family:sans-serif;line-height:1.7;margin:0 0 32px;">
+      We received a request to reset the password for your Thursday Drop account.<br>
+      Click the button below to choose a new password. This link expires in <strong style="color:#B8860B;">1 hour</strong>.
+    </p>
+    <a href="${resetUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:14px 32px;text-decoration:none;font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:32px;">Reset Password →</a>
+    <p style="color:#F2EBD9;opacity:0.4;font-size:12px;font-family:sans-serif;line-height:1.6;margin:0;">
+      If you didn't request a password reset, you can safely ignore this email.<br>
+      Your password will not change.
+    </p>
+  `;
+
+  await resend.emails.send({
+    from: FROM_ALERTS,
+    to: toEmail,
+    subject: "Reset your Thursday Drop password",
+    html: emailWrapper(inner),
+  });
+
+  logger.info({ to: toEmail }, "Password reset email sent");
+}
+
 // ─── Weekly Picks ─────────────────────────────────────────────────────────────
 
 export async function sendWeeklyPicks(subject: string, body: string): Promise<{ sent: number }> {

@@ -21,6 +21,8 @@ import Account from "@/pages/Account";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
 import Unsubscribe from "@/pages/Unsubscribe";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import FAQ from "@/pages/FAQ";
 import Contact from "@/pages/Contact";
 import Terms from "@/pages/Terms";
@@ -49,6 +51,8 @@ function Router() {
           <Route path="/release" component={Release} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/unsubscribe" component={Unsubscribe} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route path="/faq" component={FAQ} />
           <Route path="/contact" component={Contact} />
           <Route path="/terms" component={Terms} />

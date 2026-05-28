@@ -5,3 +5,4 @@ export * from "./watchlist";
 export * from "./watchlist_categories";
 export * from "./email_subscribers";
 export * from "./alerts";
+export * from "./password_reset_tokens";
