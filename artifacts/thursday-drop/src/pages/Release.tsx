@@ -115,7 +115,12 @@ function ProgramSection({ program, search }: { program: ProgramWithWines; search
             <span className="text-sm text-muted-foreground">
               {program.wines.length} wine{program.wines.length !== 1 ? "s" : ""}
             </span>
-            {!isPreview && program.release.closing_date && (
+            {!isPreview && (
+              <span className="inline-flex items-center text-xs font-medium tracking-wide text-emerald-400 border border-emerald-700/50 bg-emerald-900/20 px-2.5 py-1">
+                Available Now Online
+              </span>
+            )}
+            {!isPreview && program.release.closing_date && /\d/.test(program.release.closing_date) && (
               <span className="text-xs text-muted-foreground border border-border px-2 py-0.5">
                 {program.release.closing_date}
               </span>
