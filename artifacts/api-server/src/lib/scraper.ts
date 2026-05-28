@@ -400,6 +400,16 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
 
     if (existing.length > 0) {
       if (!options.force) {
+        // Even when skipping a full re-scrape, update status if it changed
+        // (e.g. preview → available after LCBO opens ordering)
+        if (existing[0].status !== info.status) {
+          const releaseOpensAt = computeReleaseOpensAt(info.status);
+          await db
+            .update(releaseCyclesTable)
+            .set({ status: info.status, release_opens_at: releaseOpensAt })
+            .where(eq(releaseCyclesTable.id, existing[0].id));
+          logger.info({ programId: info.programId, oldStatus: existing[0].status, newStatus: info.status }, "Program status updated");
+        }
         logger.info({ programId: info.programId }, "Already scraped, skipping");
         summaries.push({ programId: info.programId, label: info.label, pages: 0, wines: 0, skipped: true, errors: [], sample: [] });
         continue;
