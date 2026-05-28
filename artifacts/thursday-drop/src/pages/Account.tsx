@@ -54,7 +54,7 @@ export default function Account() {
     }
   };
 
-  const handleSubscribe = (plan: "monthly" | "annual") => {
+  const handleSubscribe = (plan: "monthly") => {
     if (!profile) {
       setLocation("/login");
       return;
@@ -214,75 +214,37 @@ export default function Account() {
                 </p>
               </div>
 
-              {/* Equal-height cards: items-stretch + flex-col on each card */}
-              <div className="grid sm:grid-cols-2 gap-6 items-stretch">
-                {/* Monthly */}
-                <div className="border border-primary p-6 flex flex-col relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase py-1 px-3">
-                    Popular
-                  </div>
-                  <div className="flex-1 space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground uppercase tracking-widest">Monthly</p>
-                      <p className="text-3xl font-light mt-1">
-                        $4.99 <span className="text-sm text-muted-foreground">/ mo</span>
-                      </p>
-                    </div>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" /> Unlimited watchlist
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" /> Full archive access
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" /> Priority alerts
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="mt-6">
-                    <Button
-                      className="w-full rounded-none font-bold tracking-widest uppercase"
-                      onClick={() => handleSubscribe("monthly")}
-                      disabled={createCheckout.isPending}
-                    >
-                      {createCheckout.isPending ? "Processing…" : "Subscribe Monthly"}
-                    </Button>
-                  </div>
+              <div className="border border-primary p-6 flex flex-col relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase py-1 px-3">
+                  Pro
                 </div>
-
-                {/* Annual */}
-                <div className="border border-border p-6 flex flex-col">
-                  <div className="flex-1 space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground uppercase tracking-widest">Annual</p>
-                      <p className="text-3xl font-light mt-1">
-                        $49.99 <span className="text-sm text-muted-foreground">/ yr</span>
-                      </p>
-                      <p className="text-xs text-primary mt-1">Save 17%</p>
-                    </div>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" /> Everything in Monthly
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" /> Best value
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-primary shrink-0" /> 2 months free
-                      </li>
-                    </ul>
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground uppercase tracking-widest">Monthly</p>
+                    <p className="text-3xl font-light mt-1">
+                      $4.99 <span className="text-sm text-muted-foreground">/ mo</span>
+                    </p>
                   </div>
-                  <div className="mt-6">
-                    <Button
-                      variant="outline"
-                      className="w-full rounded-none font-bold tracking-widest uppercase border-border"
-                      onClick={() => handleSubscribe("annual")}
-                      disabled={createCheckout.isPending}
-                    >
-                      {createCheckout.isPending ? "Processing…" : "Subscribe Annual"}
-                    </Button>
-                  </div>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary shrink-0" /> Unlimited watchlist
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary shrink-0" /> Full archive access
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary shrink-0" /> Priority alerts
+                    </li>
+                  </ul>
+                </div>
+                <div className="mt-6">
+                  <Button
+                    className="w-full rounded-none font-bold tracking-widest uppercase"
+                    onClick={() => handleSubscribe("monthly")}
+                    disabled={createCheckout.isPending}
+                  >
+                    {createCheckout.isPending ? "Processing…" : "Subscribe — $4.99 / month"}
+                  </Button>
                 </div>
               </div>
             </div>

@@ -9,7 +9,7 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const createCheckout = useCreateCheckout();
 
-  const handleStripeCheckout = (plan: "monthly" | "annual") => {
+  const handleStripeCheckout = (plan: "monthly") => {
     if (!profile) {
       setLocation("/signup");
       return;
@@ -226,14 +226,6 @@ export default function Landing() {
                     disabled={createCheckout.isPending}
                   >
                     {createCheckout.isPending ? "Processing…" : "Subscribe — $4.99 / month"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full rounded-none tracking-widest uppercase text-xs hover:text-primary hover:bg-transparent"
-                    onClick={() => handleStripeCheckout("annual")}
-                    disabled={createCheckout.isPending}
-                  >
-                    Or $49.99 / year&ensp;—&ensp;Save 17%
                   </Button>
                 </div>
               </div>

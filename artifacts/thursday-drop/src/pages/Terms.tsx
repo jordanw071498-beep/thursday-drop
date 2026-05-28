@@ -20,7 +20,7 @@ export default function Terms() {
         </Section>
 
         <Section n="4" title="Subscriptions and Billing">
-          Pro subscriptions are billed monthly at $4.99 CAD or annually at $49.99 CAD. Payments are processed securely by Stripe. You may cancel your subscription at any time from your Account page. Upon cancellation you retain Pro access until the end of your current billing period. Refunds are handled on a case by case basis. If you believe you are entitled to a refund please contact hello@thursdaydrop.ca. Thursday Drop reserves the right to change subscription pricing. Active subscribers will be notified of any pricing changes by email with reasonable notice.
+          Pro subscriptions are billed monthly at $4.99 CAD. Payments are processed securely by Stripe. You may cancel your subscription at any time from your Account page. Upon cancellation you retain Pro access until the end of your current billing period. Refunds are handled on a case by case basis. If you believe you are entitled to a refund please contact hello@thursdaydrop.ca. Thursday Drop reserves the right to change subscription pricing. Active subscribers will be notified of any pricing changes by email with reasonable notice.
         </Section>
 
         <Section n="5" title="Accounts">

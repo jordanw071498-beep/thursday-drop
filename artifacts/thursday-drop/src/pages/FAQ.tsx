@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: "What is the difference between Free and Pro?",
-    a: "Free accounts can track up to 5 wines and receive standard release alerts. Pro accounts ($4.99/month or $49.99/year) get unlimited watchlist items, the 7am morning reminder before ordering opens, weekly curated picks emails, and full access to the wine history archive.",
+    a: "Free accounts can track up to 5 wines and receive standard release alerts. Pro accounts ($4.99/month) get unlimited watchlist items, the 7am morning reminder before ordering opens, weekly curated picks emails, and full access to the wine history archive.",
   },
   {
     q: "How do I cancel my Pro subscription?",

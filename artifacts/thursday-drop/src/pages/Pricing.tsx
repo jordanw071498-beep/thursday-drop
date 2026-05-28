@@ -17,7 +17,7 @@ export default function Pricing() {
     }
   }, [profile?.is_pro, setLocation]);
 
-  const handleSubscribe = (plan: "monthly" | "annual") => {
+  const handleSubscribe = (plan: "monthly") => {
     if (!profile) {
       setLocation("/login");
       return;
@@ -124,14 +124,6 @@ export default function Pricing() {
                 disabled={createCheckout.isPending}
               >
                 {createCheckout.isPending ? "Processing…" : "Subscribe — $4.99 / month"}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full rounded-none tracking-widest uppercase text-xs hover:text-primary hover:bg-transparent"
-                onClick={() => handleSubscribe("annual")}
-                disabled={createCheckout.isPending}
-              >
-                Or $49.99 / year&ensp;—&ensp;Save 17%
               </Button>
             </div>
           </div>

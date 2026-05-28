@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { Check, X } from "lucide-react";
 
-type Plan = "free" | "monthly" | "annual";
+type Plan = "free" | "monthly";
 
 const PASSWORD_REQS = [
   { key: "length", label: "At least 8 characters", test: (p: string) => p.length >= 8 },
@@ -195,7 +195,7 @@ export default function Signup() {
             <p className="text-xs text-muted-foreground uppercase tracking-widest">Choose your plan</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {/* Free */}
             <button
               type="button"
@@ -217,7 +217,7 @@ export default function Signup() {
               className={`p-4 border text-left transition-colors relative ${selectedPlan === "monthly" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50"}`}
             >
               <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold tracking-widest py-0.5 px-2">
-                Popular
+                Pro
               </div>
               <div className="flex items-start justify-between mb-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-widest">Monthly</p>
@@ -225,20 +225,6 @@ export default function Signup() {
               </div>
               <p className="text-xl font-light">$4.99<span className="text-xs text-muted-foreground">/mo</span></p>
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed">Unlimited watchlist</p>
-            </button>
-
-            {/* Annual */}
-            <button
-              type="button"
-              onClick={() => setSelectedPlan("annual")}
-              className={`p-4 border text-left transition-colors ${selectedPlan === "annual" ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50"}`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-widest">Annual</p>
-                {selectedPlan === "annual" && <Check className="h-4 w-4 text-primary shrink-0" />}
-              </div>
-              <p className="text-xl font-light">$49.99<span className="text-xs text-muted-foreground">/yr</span></p>
-              <p className="text-xs text-primary mt-2 leading-relaxed">Save 17%</p>
             </button>
           </div>
 
