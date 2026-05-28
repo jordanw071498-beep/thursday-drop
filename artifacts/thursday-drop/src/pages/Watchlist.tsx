@@ -290,24 +290,24 @@ export default function Watchlist() {
           </span>
         }
       />
-      <div className="max-w-4xl mx-auto px-6 py-10 space-y-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-12">
 
         {/* Add New Target */}
         <div className="bg-card p-6 border border-border space-y-6">
           <h2 className="font-serif text-2xl">Add New Target</h2>
 
-          <div className="flex gap-0 border border-border w-fit">
+          <div className="flex w-full border border-border">
             {(["exact", "wine", "producer"] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium tracking-wider uppercase transition-colors ${
+                className={`flex flex-1 items-center justify-center gap-1.5 px-3 sm:px-5 py-2.5 text-xs sm:text-sm font-medium tracking-wider uppercase transition-colors min-w-0 ${
                   mode === m ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {MODE_CONFIG[m].icon}
-                {MODE_CONFIG[m].label}
+                <span className="truncate">{MODE_CONFIG[m].label}</span>
               </button>
             ))}
           </div>
@@ -330,9 +330,9 @@ export default function Watchlist() {
               <Input placeholder="Producer or label (e.g., Armand Rousseau, DRC)" value={producer} onChange={e => setProducer(e.target.value)} required className="bg-background rounded-none border-border" />
             )}
 
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p className="text-xs text-muted-foreground">{MODE_CONFIG[mode].hint}</p>
-              <Button type="submit" disabled={isAtLimit || addToWatchlist.isPending} className="rounded-none font-bold tracking-widest uppercase px-8 shrink-0">
+              <Button type="submit" disabled={isAtLimit || addToWatchlist.isPending} className="rounded-none font-bold tracking-widest uppercase px-8 shrink-0 w-full sm:w-auto">
                 {addToWatchlist.isPending ? "Adding..." : "Add"}
               </Button>
             </div>
