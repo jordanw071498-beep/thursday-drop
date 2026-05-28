@@ -64,7 +64,7 @@ export default function Signup() {
 
       if (selectedPlan !== "free") {
         try {
-          const checkoutRes = await fetch("/api/stripe/checkout", {
+          const checkoutRes = await fetch("/api/stripe/create-checkout", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

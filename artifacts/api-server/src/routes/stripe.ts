@@ -43,9 +43,10 @@ router.post("/stripe/create-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = await getUncachableStripeClient();
 
-    const baseUrl = process.env.REPLIT_DOMAINS
-      ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-      : "http://localhost:3000";
+    const baseUrl = process.env.APP_URL
+      ?? (process.env.REPLIT_DOMAINS
+        ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+        : "http://localhost:3000");
 
     const priceId = await getPriceId(plan);
 
