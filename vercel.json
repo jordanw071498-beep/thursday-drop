@@ -23,6 +23,14 @@
       "schedule": "0 14 * * 4"
     },
     {
+      "path": "/api/cron/scrape",
+      "schedule": "0 18 * * 4"
+    },
+    {
+      "path": "/api/cron/scrape",
+      "schedule": "0 21 * * 4"
+    },
+    {
       "path": "/api/cron/morning-alerts",
       "schedule": "0 11 * * 4"
     },
