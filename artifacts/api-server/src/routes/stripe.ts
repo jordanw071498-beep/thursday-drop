@@ -129,18 +129,15 @@ router.post("/stripe/cancel-subscription", async (req, res): Promise<void> => {
       return;
     }
 
-    await stripe.subscriptions.cancel(subscriptions.data[0].id);
+    await stripe.subscriptions.update(subscriptions.data[0].id, {
+      cancel_at_period_end: true,
+    });
 
-    await db
-      .update(profilesTable)
-      .set({ is_pro: false })
-      .where(eq(profilesTable.id, profile.id));
-
-    logger.info({ userId: profile.id }, "Subscription cancelled");
+    logger.info({ userId: profile.id }, "Subscription set to cancel at period end");
     res.json(
       CancelSubscriptionResponse.parse({
         success: true,
-        message: "Subscription cancelled. Your Pro access has been removed.",
+        message: "Subscription cancelled. You'll keep Pro access until the end of your billing period.",
       }),
     );
   } catch (err) {
