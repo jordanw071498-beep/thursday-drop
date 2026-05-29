@@ -204,14 +204,90 @@ export default function Admin() {
 
           {/* Overview */}
           <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <StatCard title="Total Subscribers" value={stats?.total_subscribers} />
-              <StatCard title="Pro Subscribers" value={stats?.pro_subscribers} />
-              <StatCard title="MRR" value={stats?.mrr ? `$${stats.mrr}` : undefined} />
-              <StatCard title="Total Wines" value={stats?.total_wines} />
-              <StatCard title="Total Releases" value={stats?.total_releases} />
-              <StatCard title="Announcement Alerts Pending" value={announcementPending} />
-              <StatCard title="Morning Alerts Pending" value={morningPending} />
+            <div className="space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard title="Total Subscribers" value={stats?.total_subscribers} />
+                <StatCard title="Pro Subscribers" value={stats?.pro_subscribers} />
+                <StatCard title="MRR" value={stats?.mrr ? `$${stats.mrr}` : undefined} />
+                <StatCard title="Total Wines" value={stats?.total_wines} />
+                <StatCard title="Total Releases" value={stats?.total_releases} />
+                <StatCard title="Announcement Alerts Pending" value={announcementPending} />
+                <StatCard title="Morning Alerts Pending" value={morningPending} />
+              </div>
+
+              {/* User list — grant/remove Pro directly from overview */}
+              <div className="bg-card border border-border">
+                <div className="p-6 border-b border-border">
+                  <h2 className="font-serif text-2xl">Users</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{users.length} accounts — grant or remove Pro access below</p>
+                </div>
+                {users.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-xs uppercase tracking-widest text-muted-foreground">
+                          <th className="text-left px-6 py-3">Email</th>
+                          <th className="text-left px-4 py-3">Status</th>
+                          <th className="text-left px-4 py-3">Joined</th>
+                          <th className="text-left px-4 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {users.map((user) => (
+                          <tr key={user.id} className="hover:bg-background/30 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                {user.is_admin ? (
+                                  <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                                ) : (
+                                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                )}
+                                <span className="text-foreground">{user.email}</span>
+                                {user.id === profile?.id && (
+                                  <span className="text-xs text-muted-foreground">(you)</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex gap-2 flex-wrap">
+                                {user.is_pro && (
+                                  <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">
+                                    Pro
+                                  </span>
+                                )}
+                                {user.is_admin && (
+                                  <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">
+                                    Admin
+                                  </span>
+                                )}
+                                {!user.is_pro && !user.is_admin && (
+                                  <span className="text-xs text-muted-foreground">Free</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-muted-foreground text-xs">
+                              {new Date(user.created_at).toLocaleDateString("en-CA")}
+                            </td>
+                            <td className="px-4 py-4">
+                              <Button
+                                size="sm"
+                                variant={user.is_pro ? "outline" : "default"}
+                                disabled={togglingId === user.id}
+                                onClick={() => handleTogglePro(user)}
+                                className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
+                              >
+                                {togglingId === user.id ? "..." : user.is_pro ? "Remove Pro" : "Grant Pro"}
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-16 text-center text-muted-foreground">No users yet.</div>
+                )}
+              </div>
             </div>
           </TabsContent>
 
