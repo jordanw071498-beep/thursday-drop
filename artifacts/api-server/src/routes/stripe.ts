@@ -76,7 +76,13 @@ router.post("/stripe/create-checkout", async (req, res): Promise<void> => {
       mode: "subscription",
       customer_email: email,
       line_items: lineItems,
+      // user_id on session metadata (checkout.session.completed)
       metadata: { user_id, plan },
+      // ALSO stamp user_id on the subscription so customer.subscription.created
+      // can activate Pro even if checkout.session.completed fails (e.g. wrong webhook secret)
+      subscription_data: {
+        metadata: { user_id, plan },
+      },
       success_url: `${baseUrl}/account?checkout=success`,
       cancel_url: `${baseUrl}/pricing`,
     });

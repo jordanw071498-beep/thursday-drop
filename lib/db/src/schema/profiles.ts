@@ -10,6 +10,7 @@ export const profilesTable = pgTable("profiles", {
   is_pro: boolean("is_pro").notNull().default(false),
   is_admin: boolean("is_admin").notNull().default(false),
   stripe_customer_id: text("stripe_customer_id"),
+  stripe_subscription_id: text("stripe_subscription_id"),
   alerts_enabled: boolean("alerts_enabled").notNull().default(true),
   unsubscribe_token: text("unsubscribe_token"),
   created_at: timestamp("created_at").notNull().defaultNow(),
