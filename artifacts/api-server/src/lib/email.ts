@@ -132,7 +132,7 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
   const pending = await db
     .select()
     .from(alertsTable)
-    .where(eq(alertsTable.sent, false));
+    .where(eq(alertsTable.announcement_alert_sent, false));
 
   if (pending.length === 0) return { sent: 0 };
 

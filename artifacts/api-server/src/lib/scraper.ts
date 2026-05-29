@@ -354,7 +354,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number>
         try {
           await db
             .insert(alertsTable)
-            .values({ user_id: item.user_id, wine_id: wine.id, wine_name: wine.wine_name, sent: false })
+            .values({ user_id: item.user_id, wine_id: wine.id, wine_name: wine.wine_name })
             .onConflictDoNothing();
           matched++;
         } catch {
@@ -370,7 +370,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number>
       try {
         await db
           .insert(alertsTable)
-          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name, sent: false })
+          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name })
           .onConflictDoNothing();
         matched++;
       } catch {

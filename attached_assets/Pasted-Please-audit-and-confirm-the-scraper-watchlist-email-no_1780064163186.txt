@@ -1,0 +1,74 @@
+Please audit and confirm the scraper/watchlist/email notification logic works exactly as intended before launch.
+
+Desired behavior:
+
+Users create watchlist targets for wines/producers/vintages. When the scraper runs, it should only notify users about genuinely NEW Vintages releases, not wines that were already present on the site before.
+
+Important requirements:
+
+1. New-release detection
+
+* The scraper should distinguish between:
+
+  * wines newly discovered in the latest Vintages release/drop
+  * wines that already existed in previous scraper results
+* Users should not receive notifications for old/already-known Vintages wines just because they match their watchlist.
+
+2. Thursday early notification
+
+* When a new upcoming Vintages release is detected on Thursday, check user watchlists.
+* If a newly detected wine matches a user’s watchlist, send one email saying the wine is releasing next week.
+* This should only happen once per user per wine per release.
+
+3. Multiple Thursday scraper runs
+
+* The scraper may run more than once on Thursday in case the Vintages email/drop is late.
+* If the first run detects/sends a notification, the second run must not send a duplicate notification for the same user/wine/release.
+* There needs to be idempotency/deduplication, likely using a notification log table or equivalent.
+
+4. Release-morning notification
+
+* On the actual release date/morning, send a second reminder email to users whose watchlisted wine is releasing that day.
+* This should also only send once per user per wine per release.
+* The app should know the difference between:
+
+  * early “releasing next week” notification
+  * release-day “releasing today” notification
+
+5. Notification tracking
+   Please verify or implement durable tracking for sent notifications, including at least:
+
+* user ID
+* wine/release item ID
+* notification type, e.g. `early_release_detected` vs `release_day_reminder`
+* release date
+* sent timestamp
+
+6. Matching rules
+   Please confirm the watchlist matching logic is correct for:
+
+* exact wine matches
+* producer matches
+* vintage-specific matches
+* any-vintage matches
+
+7. Testing
+   Please add or run tests/simulations for:
+
+* first Thursday scraper run detects a new matching wine and sends one email
+* second Thursday scraper run sees the same wine and sends no duplicate
+* already-known wine does not trigger a new early notification
+* release-day job sends one reminder
+* release-day job does not send duplicates
+* multiple users watching the same wine each get their own notification once
+* one user watching the same wine through multiple matching targets does not get duplicate emails
+
+Please inspect the current implementation, fix any gaps, and tell me exactly:
+
+* how new releases are identified
+* how duplicate emails are prevented
+* how release-day reminders are triggered
+* what files/tables were changed
+* whether any new env vars or scheduled jobs are needed
+
+Push any required changes to GitHub so Vercel redeploys.
