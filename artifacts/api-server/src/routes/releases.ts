@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db, releaseCyclesTable, winesTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import {
@@ -29,7 +29,7 @@ router.get("/releases/active", async (_req, res): Promise<void> => {
   const allCycles = await db
     .select()
     .from(releaseCyclesTable)
-    .orderBy(asc(releaseCyclesTable.display_order));
+    .orderBy(desc(releaseCyclesTable.scraped_at));
 
   const activeCycles = allCycles.filter((cycle) => {
     if (!cycle.closing_date) return true;
