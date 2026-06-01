@@ -326,7 +326,7 @@ const CATEGORY_MATCHERS: Record<string, (w: InsertedWine) => boolean> = {
     /sauternes|d'yquem|yquem|beerenauslese|trockenbeerenauslese|eiswein|tokaj/i.test(w.wine_name) || /sauternes/i.test(w.region ?? ""),
 };
 
-async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number> {
+async function runMatchingEngine(insertedWines: InsertedWine[], isTest = false): Promise<number> {
   const watchlistItems = await db.select().from(watchlistItemsTable);
   const categoryItems = await db.select().from(watchlistCategoriesTable);
   let matched = 0;
@@ -354,7 +354,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number>
         try {
           await db
             .insert(alertsTable)
-            .values({ user_id: item.user_id, wine_id: wine.id, wine_name: wine.wine_name })
+            .values({ user_id: item.user_id, wine_id: wine.id, wine_name: wine.wine_name, is_test: isTest })
             .onConflictDoNothing();
           matched++;
         } catch {
@@ -370,7 +370,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number>
       try {
         await db
           .insert(alertsTable)
-          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name })
+          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name, is_test: isTest })
           .onConflictDoNothing();
         matched++;
       } catch {
@@ -450,7 +450,7 @@ export async function queueAlertsForNewWatchlistItem(
   return matched;
 }
 
-export async function runScraper(options: { force?: boolean } = {}): Promise<ScraperResult> {
+export async function runScraper(options: { force?: boolean; testMode?: boolean } = {}): Promise<ScraperResult> {
   logger.info({ force: options.force }, "Scraper run started");
   const summaries: ScraperResult["programs"] = [];
   let totalWines = 0;
@@ -537,7 +537,7 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
       inserted.push({ id: row.id, wine_name: row.wine_name, producer: row.producer, vintage: row.vintage, region: row.region, region_category: row.region_category });
     }
 
-    const alertsQueued = await runMatchingEngine(inserted);
+    const alertsQueued = await runMatchingEngine(inserted, options.testMode ?? false);
     totalAlertsMatched += alertsQueued;
     logger.info({ programId: info.programId, alertsQueued }, "Matching engine done");
 
@@ -566,8 +566,8 @@ export async function runScraper(options: { force?: boolean } = {}): Promise<Scr
     }
   }
 
-  // Send announcement alerts for all newly matched wines
-  if (totalAlertsMatched > 0) {
+  // Send announcement alerts for all newly matched wines (skip auto-send in test mode)
+  if (totalAlertsMatched > 0 && !options.testMode) {
     try {
       const { sendPendingAlerts } = await import("./email.js");
       const { sent } = await sendPendingAlerts();

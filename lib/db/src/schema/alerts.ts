@@ -14,6 +14,8 @@ export const alertsTable = pgTable("alerts", {
   // Morning reminder (release-day notification)
   morning_alert_sent: boolean("morning_alert_sent").notNull().default(false),
   morning_sent_at: timestamp("morning_sent_at"),
+  // Test mode — alerts created while Test Mode is ON; never sent to real users
+  is_test: boolean("is_test").notNull().default(false),
   created_at: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({
   // One alert row per user per wine — prevents duplicate emails when multiple

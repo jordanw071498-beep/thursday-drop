@@ -719,7 +719,13 @@ components:
           type: integer
         pending_alerts:
           type: integer
-      required: [total_subscribers, pro_subscribers, mrr, total_wines, total_releases, pending_alerts]
+        pending_real_alerts:
+          type: integer
+        pending_test_alerts:
+          type: integer
+        pending_real_users:
+          type: integer
+      required: [total_subscribers, pro_subscribers, mrr, total_wines, total_releases, pending_alerts, pending_real_alerts, pending_test_alerts, pending_real_users]
 
     ScrapeResult:
       type: object

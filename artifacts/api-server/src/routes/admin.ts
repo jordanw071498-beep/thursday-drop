@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and } from "drizzle-orm";
 import {
   db,
   profilesTable,
@@ -50,7 +50,22 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   const [pendingAlerts] = await db
     .select({ count: sql<number>`count(*)` })
     .from(alertsTable)
-    .where(eq(alertsTable.sent, false));
+    .where(eq(alertsTable.announcement_alert_sent, false));
+
+  const [realAlerts] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, false)));
+
+  const [testAlerts] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, true)));
+
+  const realUsersRows = await db
+    .selectDistinct({ user_id: alertsTable.user_id })
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, false)));
 
   const proCount = Number(proSubs?.count ?? 0);
 
@@ -62,6 +77,9 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
       total_wines: Number(totalWines?.count ?? 0),
       total_releases: Number(totalReleases?.count ?? 0),
       pending_alerts: Number(pendingAlerts?.count ?? 0),
+      pending_real_alerts: Number(realAlerts?.count ?? 0),
+      pending_test_alerts: Number(testAlerts?.count ?? 0),
+      pending_real_users: realUsersRows.length,
     }),
   );
 });
@@ -83,6 +101,7 @@ router.get("/admin/alerts", async (req, res): Promise<void> => {
       sent_at: alertsTable.sent_at,
       morning_alert_sent: alertsTable.morning_alert_sent,
       morning_sent_at: alertsTable.morning_sent_at,
+      is_test: alertsTable.is_test,
       created_at: alertsTable.created_at,
     })
     .from(alertsTable)
@@ -109,9 +128,11 @@ router.post("/admin/scrape", async (req, res): Promise<void> => {
     return;
   }
 
+  const testMode = req.body?.testMode === true;
+
   try {
     const scraper = await import("../lib/scraper.js");
-    const result = await scraper.runScraper();
+    const result = await scraper.runScraper({ testMode });
     res.json(TriggerScrapeResponse.parse({ success: true, message: result.message, wines_found: result.wines_found }));
   } catch (err) {
     logger.error({ err }, "Scraper error");
@@ -122,6 +143,22 @@ router.post("/admin/scrape", async (req, res): Promise<void> => {
 router.post("/admin/send-alerts", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { confirm } = req.body ?? {};
+
+  // Without confirm=true, return the real-user count so the frontend can show a warning
+  if (!confirm) {
+    const emailLib = await import("../lib/email.js");
+    const counts = await emailLib.getPendingAlertCounts();
+    res.json({
+      success: false,
+      requires_confirmation: true,
+      pending_real_alerts: counts.real,
+      pending_real_users: counts.realUsers,
+      message: `${counts.real} real alerts pending for ${counts.realUsers} users. Send confirm=true to proceed.`,
+    });
     return;
   }
 
@@ -148,6 +185,29 @@ router.post("/admin/send-morning-alerts", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Send morning alerts error");
     res.json({ success: false, sent: 0, message: "Failed to send morning alerts" });
+  }
+});
+
+router.post("/admin/send-test-mode-alerts", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const emailLib = await import("../lib/email.js");
+    const result = await emailLib.sendTestModeAlerts();
+    res.json({
+      success: true,
+      sent: result.sent,
+      adminEmail: result.adminEmail,
+      message: result.sent > 0
+        ? `Sent ${result.sent} test alerts to ${result.adminEmail}`
+        : "No pending test alerts to send",
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Send test mode alerts error");
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

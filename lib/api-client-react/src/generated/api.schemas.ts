@@ -199,6 +199,9 @@ export interface AdminStats {
   total_wines: number;
   total_releases: number;
   pending_alerts: number;
+  pending_real_alerts: number;
+  pending_test_alerts: number;
+  pending_real_users: number;
 }
 
 export interface ScrapeResult {

@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { CheckCircle, Clock, ShieldCheck, User } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User } from "lucide-react";
 
 interface AlertRow {
   id: number;
@@ -19,6 +19,7 @@ interface AlertRow {
   sent_at: string | null;
   morning_alert_sent: boolean;
   morning_sent_at: string | null;
+  is_test: boolean;
   created_at: string;
 }
 
@@ -79,6 +80,51 @@ function SentBadge({ sent, label, date }: { sent: boolean; label: string; date?:
   );
 }
 
+/** Inline confirmation dialog shown when about to send real alerts */
+function ConfirmSendDialog({
+  realAlerts,
+  realUsers,
+  onConfirm,
+  onCancel,
+  isSending,
+}: {
+  realAlerts: number;
+  realUsers: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isSending: boolean;
+}) {
+  return (
+    <div className="border border-amber-700/60 bg-amber-950/30 p-4 space-y-3">
+      <div className="flex items-start gap-2 text-amber-400">
+        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+        <p className="text-sm font-medium">
+          This will send emails to <strong>{realUsers} real {realUsers === 1 ? "user" : "users"}</strong> ({realAlerts} alert{realAlerts !== 1 && "s"} total). Are you sure?
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={onConfirm}
+          disabled={isSending}
+          className="rounded-none tracking-widest uppercase bg-amber-700 hover:bg-amber-600 text-white text-xs h-7 px-4"
+        >
+          {isSending ? "Sending..." : "Yes, Send Now"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSending}
+          className="rounded-none tracking-widest uppercase text-xs h-7 px-4"
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { profile, token, refreshProfile } = useAuth();
 
@@ -86,11 +132,11 @@ export default function Admin() {
   const { data: alertsData, refetch: refetchAlerts } = useAdminFetch<{ alerts: AlertRow[] }>("/admin/alerts", token);
   const { data: usersData, refetch: refetchUsers } = useAdminFetch<{ users: UserRow[] }>("/admin/users", token);
 
-  const triggerScrape = useTriggerScrape();
   const sendAlerts = useSendAlerts();
   const sendWeeklyPicks = useSendWeeklyPicks();
   const sendMorningAlerts = useAdminPost("/admin/send-morning-alerts", token);
   const sendTestAlert = useAdminPost("/admin/test-alert", token);
+  const sendTestModeAlerts = useAdminPost("/admin/send-test-mode-alerts", token);
   const { toast } = useToast();
 
   const [subject, setSubject] = useState("");
@@ -98,28 +144,69 @@ export default function Admin() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("");
 
+  // Test Mode state
+  const [testMode, setTestMode] = useState(false);
+
+  // Confirmation dialog state for Send All Pending
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isSendingConfirmed, setIsSendingConfirmed] = useState(false);
+
   const alerts = alertsData?.alerts ?? [];
   const users = usersData?.users ?? [];
-  const announcementPending = alerts.filter((a) => !a.announcement_alert_sent).length;
   const morningPending = alerts.filter((a) => !a.morning_alert_sent && a.release_opens_at).length;
 
+  // Use server-computed counts from stats (accurate, not derived from the 100-row limit)
+  const pendingRealAlerts = stats?.pending_real_alerts ?? 0;
+  const pendingTestAlerts = stats?.pending_test_alerts ?? 0;
+  const pendingRealUsers = stats?.pending_real_users ?? 0;
+
   const handleScrape = () => {
-    triggerScrape.mutate(undefined, {
-      onSuccess: () => {
-        toast({ title: "Scrape Triggered", description: "Data is being updated." });
+    // Use the generated hook for scrape but pass testMode via body through raw fetch
+    fetch("/api/admin/scrape", {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ testMode }),
+    })
+      .then((r) => r.json())
+      .then((data: any) => {
+        const modeLabel = testMode ? " [TEST MODE]" : "";
+        toast({ title: `Scrape Complete${modeLabel}`, description: data?.message ?? "Done." });
         refetchStats();
         refetchAlerts();
-      },
-    });
+      })
+      .catch(() => toast({ title: "Scrape failed", variant: "destructive" }));
   };
 
   const handleAlerts = () => {
-    sendAlerts.mutate(undefined, {
-      onSuccess: (data: any) => {
-        toast({ title: "Announcement Alerts Sent", description: data?.message ?? "Done." });
-        refetchAlerts();
+    if (pendingRealAlerts === 0) {
+      toast({ title: "No pending real alerts" });
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirmedSend = () => {
+    setIsSendingConfirmed(true);
+    fetch("/api/admin/send-alerts", {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "Content-Type": "application/json",
       },
-    });
+      body: JSON.stringify({ confirm: true }),
+    })
+      .then((r) => r.json())
+      .then((data: any) => {
+        toast({ title: "Announcement Alerts Sent", description: data?.message ?? "Done." });
+        setShowConfirm(false);
+        refetchStats();
+        refetchAlerts();
+      })
+      .catch(() => toast({ title: "Failed to send", variant: "destructive" }))
+      .finally(() => setIsSendingConfirmed(false));
   };
 
   const handleMorningAlerts = () => {
@@ -127,6 +214,19 @@ export default function Admin() {
       onSuccess: (data: any) => {
         toast({ title: "Morning Alerts Sent", description: data?.message ?? "Done." });
         refetchAlerts();
+      },
+    });
+  };
+
+  const handleSendTestModeAlerts = () => {
+    sendTestModeAlerts.mutate(undefined, {
+      onSuccess: (data: any) => {
+        toast({ title: "Test Alerts Sent to Admin", description: data?.message ?? "Check your inbox." });
+        refetchStats();
+        refetchAlerts();
+      },
+      onError: () => {
+        toast({ title: "Failed to send test alerts", variant: "destructive" });
       },
     });
   };
@@ -171,7 +271,6 @@ export default function Admin() {
       });
       if (!res.ok) throw new Error("Failed");
       await refetchUsers();
-      // If toggling self, refresh auth context too
       if (user.id === profile?.id) await refreshProfile();
       toast({ title: `Pro ${user.is_pro ? "removed from" : "granted to"} ${user.email}` });
     } catch {
@@ -185,8 +284,32 @@ export default function Admin() {
     <div className="min-h-screen bg-background px-6 py-12">
       <div className="max-w-6xl mx-auto space-y-12">
         <header className="border-b border-border pb-8">
-          <h1 className="font-serif text-5xl text-primary mb-4">Command Center</h1>
-          <p className="text-muted-foreground text-lg">System operations and administration.</p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="font-serif text-5xl text-primary mb-4">Command Center</h1>
+              <p className="text-muted-foreground text-lg">System operations and administration.</p>
+            </div>
+
+            {/* Test Mode toggle */}
+            <div className={`flex items-center gap-3 border p-4 shrink-0 ${testMode ? "border-amber-600/60 bg-amber-950/30" : "border-border bg-card"}`}>
+              <FlaskConical className={`h-5 w-5 ${testMode ? "text-amber-400" : "text-muted-foreground"}`} />
+              <div>
+                <p className={`text-sm font-medium tracking-widest uppercase ${testMode ? "text-amber-400" : "text-muted-foreground"}`}>
+                  Test Mode {testMode ? "ON" : "OFF"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {testMode ? "Scraper alerts marked as test — never sent to real users" : "Scraper alerts go to real users"}
+                </p>
+              </div>
+              <button
+                onClick={() => { setTestMode((v) => !v); setShowConfirm(false); }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${testMode ? "bg-amber-600" : "bg-muted"}`}
+                aria-label="Toggle Test Mode"
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${testMode ? "translate-x-6" : "translate-x-1"}`} />
+              </button>
+            </div>
+          </div>
         </header>
 
         <Tabs defaultValue="overview" className="w-full">
@@ -211,11 +334,12 @@ export default function Admin() {
                 <StatCard title="MRR" value={stats?.mrr ? `$${stats.mrr}` : undefined} />
                 <StatCard title="Total Wines" value={stats?.total_wines} />
                 <StatCard title="Total Releases" value={stats?.total_releases} />
-                <StatCard title="Announcement Alerts Pending" value={announcementPending} />
+                <StatCard title="Real Alerts Pending" value={pendingRealAlerts} highlight={pendingRealAlerts > 0} />
+                <StatCard title="Test Alerts Pending" value={pendingTestAlerts} muted />
                 <StatCard title="Morning Alerts Pending" value={morningPending} />
               </div>
 
-              {/* User list — grant/remove Pro directly from overview */}
+              {/* User list */}
               <div className="bg-card border border-border">
                 <div className="p-6 border-b border-border">
                   <h2 className="font-serif text-2xl">Users</h2>
@@ -251,14 +375,10 @@ export default function Admin() {
                             <td className="px-4 py-4">
                               <div className="flex gap-2 flex-wrap">
                                 {user.is_pro && (
-                                  <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">
-                                    Pro
-                                  </span>
+                                  <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">Pro</span>
                                 )}
                                 {user.is_admin && (
-                                  <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">
-                                    Admin
-                                  </span>
+                                  <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">Admin</span>
                                 )}
                                 {!user.is_pro && !user.is_admin && (
                                   <span className="text-xs text-muted-foreground">Free</span>
@@ -296,12 +416,21 @@ export default function Admin() {
             <div className="bg-card border border-border p-8 space-y-6">
               <h2 className="font-serif text-2xl">Manual Data Sync</h2>
               <p className="text-muted-foreground">Trigger a manual scrape of LCBO Vintages to check for new releases.</p>
+
+              {testMode && (
+                <div className="flex items-start gap-2 border border-amber-700/60 bg-amber-950/30 p-4 text-amber-400">
+                  <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p className="text-sm">
+                    <strong>Test Mode is ON.</strong> Any alerts generated by this scrape will be marked as test alerts and will never be sent to real users. Use "Send Test Alert to Admin" in the Alerts tab to review them.
+                  </p>
+                </div>
+              )}
+
               <Button
                 onClick={handleScrape}
-                disabled={triggerScrape.isPending}
-                className="rounded-none font-bold tracking-widest uppercase"
+                className={`rounded-none font-bold tracking-widest uppercase ${testMode ? "bg-amber-700 hover:bg-amber-600 text-white" : ""}`}
               >
-                {triggerScrape.isPending ? "Scraping..." : "Run Scraper Now"}
+                {testMode ? "Run Scraper (Test Mode)" : "Run Scraper Now"}
               </Button>
             </div>
           </TabsContent>
@@ -309,24 +438,91 @@ export default function Admin() {
           {/* Alerts */}
           <TabsContent value="alerts">
             <div className="space-y-8">
+              {/* Alert counts summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-card border border-border p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Real Pending</p>
+                  <p className={`font-mono text-2xl font-bold ${pendingRealAlerts > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                    {pendingRealAlerts}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{pendingRealUsers} user{pendingRealUsers !== 1 && "s"}</p>
+                </div>
+                <div className="bg-card border border-amber-900/40 p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Test Pending</p>
+                  <p className={`font-mono text-2xl font-bold ${pendingTestAlerts > 0 ? "text-amber-400" : "text-muted-foreground"}`}>
+                    {pendingTestAlerts}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">admin only</p>
+                </div>
+                <div className="bg-card border border-border p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Morning Pending</p>
+                  <p className="font-mono text-2xl font-bold text-muted-foreground">{morningPending}</p>
+                  <p className="text-xs text-muted-foreground mt-1">today</p>
+                </div>
+                <div className="bg-card border border-border p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Total in Queue</p>
+                  <p className="font-mono text-2xl font-bold text-muted-foreground">{alerts.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">all time</p>
+                </div>
+              </div>
+
               {/* Action cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Announcement alerts */}
                 <div className="bg-card border border-border p-6 space-y-4">
                   <div>
                     <h3 className="font-serif text-lg mb-1">Announcement Alerts</h3>
-                    <p className="text-muted-foreground text-sm">Sent immediately when a watched wine appears on Vintages.</p>
+                    <p className="text-muted-foreground text-sm">Send to real users. Requires confirmation.</p>
                   </div>
-                  <div className="font-mono text-sm text-muted-foreground">
-                    {announcementPending} pending
+                  <div className="font-mono text-sm">
+                    <span className={pendingRealAlerts > 0 ? "text-foreground" : "text-muted-foreground"}>
+                      {pendingRealAlerts} real pending
+                    </span>
+                    {pendingTestAlerts > 0 && (
+                      <span className="text-amber-400 ml-2">· {pendingTestAlerts} test</span>
+                    )}
+                  </div>
+
+                  {showConfirm ? (
+                    <ConfirmSendDialog
+                      realAlerts={pendingRealAlerts}
+                      realUsers={pendingRealUsers}
+                      onConfirm={handleConfirmedSend}
+                      onCancel={() => setShowConfirm(false)}
+                      isSending={isSendingConfirmed}
+                    />
+                  ) : (
+                    <Button
+                      onClick={handleAlerts}
+                      disabled={pendingRealAlerts === 0}
+                      size="sm"
+                      className="rounded-none tracking-widest uppercase w-full"
+                    >
+                      Send All Pending ({pendingRealAlerts})
+                    </Button>
+                  )}
+                </div>
+
+                {/* Test mode alerts */}
+                <div className="bg-card border border-amber-900/40 p-6 space-y-4">
+                  <div>
+                    <h3 className="font-serif text-lg mb-1 flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4 text-amber-400" />
+                      Test Alert to Admin
+                    </h3>
+                    <p className="text-muted-foreground text-sm">Send queued test alerts only to your admin email. Never touches real users.</p>
+                  </div>
+                  <div className="font-mono text-sm text-amber-400">
+                    {pendingTestAlerts} test alert{pendingTestAlerts !== 1 && "s"} queued
                   </div>
                   <Button
-                    onClick={handleAlerts}
-                    disabled={sendAlerts.isPending || announcementPending === 0}
+                    onClick={handleSendTestModeAlerts}
+                    disabled={sendTestModeAlerts.isPending || pendingTestAlerts === 0}
                     size="sm"
-                    className="rounded-none tracking-widest uppercase w-full"
+                    variant="outline"
+                    className="rounded-none tracking-widest uppercase w-full border-amber-700 text-amber-400 hover:bg-amber-900/20 disabled:opacity-40"
                   >
-                    {sendAlerts.isPending ? "Sending..." : "Send All Pending"}
+                    {sendTestModeAlerts.isPending ? "Sending..." : "Send Test Alert to Admin"}
                   </Button>
                 </div>
 
@@ -334,7 +530,7 @@ export default function Admin() {
                 <div className="bg-card border border-border p-6 space-y-4">
                   <div>
                     <h3 className="font-serif text-lg mb-1">Morning Alerts</h3>
-                    <p className="text-muted-foreground text-sm">Sent at 7am on the Thursday the wine opens for ordering.</p>
+                    <p className="text-muted-foreground text-sm">Sent at 7am on the Thursday a wine opens for ordering.</p>
                   </div>
                   <div className="font-mono text-sm text-muted-foreground">
                     {morningPending} pending today
@@ -349,28 +545,30 @@ export default function Admin() {
                     {sendMorningAlerts.isPending ? "Sending..." : "Send All Pending"}
                   </Button>
                 </div>
+              </div>
 
-                {/* Test email */}
-                <div className="bg-card border border-border p-6 space-y-4">
-                  <div>
-                    <h3 className="font-serif text-lg mb-1">Test Emails</h3>
-                    <p className="text-muted-foreground text-sm">Send both email templates to any address to preview them.</p>
-                  </div>
+              {/* Template test */}
+              <div className="bg-card border border-border p-6 space-y-4">
+                <div>
+                  <h3 className="font-serif text-lg mb-1">Test Email Templates</h3>
+                  <p className="text-muted-foreground text-sm">Send both email templates to any address to preview them. This does not touch the alerts queue.</p>
+                </div>
+                <div className="flex gap-3 items-end">
                   <Input
                     type="email"
                     placeholder="your@email.com"
                     value={testEmail}
                     onChange={(e) => setTestEmail(e.target.value)}
-                    className="bg-background rounded-none border-border text-sm"
+                    className="bg-background rounded-none border-border text-sm max-w-xs"
                   />
                   <Button
                     onClick={handleTestAlert}
                     disabled={sendTestAlert.isPending || !testEmail}
                     size="sm"
                     variant="outline"
-                    className="rounded-none tracking-widest uppercase w-full border-amber-700 text-amber-400 hover:bg-amber-900/20 disabled:opacity-40"
+                    className="rounded-none tracking-widest uppercase border-border hover:bg-muted disabled:opacity-40"
                   >
-                    {sendTestAlert.isPending ? "Sending..." : "Send Test Email"}
+                    {sendTestAlert.isPending ? "Sending..." : "Send Template Preview"}
                   </Button>
                 </div>
               </div>
@@ -378,9 +576,15 @@ export default function Admin() {
               {/* Alert queue table */}
               {alerts.length > 0 ? (
                 <div className="bg-card border border-border">
-                  <div className="p-6 border-b border-border">
-                    <h3 className="font-serif text-xl">Alert Queue</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{alerts.length} total alerts</p>
+                  <div className="p-6 border-b border-border flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-xl">Alert Queue</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{alerts.length} alerts (most recent 100)</p>
+                    </div>
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-foreground/40" />real</span>
+                      <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-amber-500" />test</span>
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -391,12 +595,13 @@ export default function Admin() {
                           <th className="text-left px-4 py-3">Program</th>
                           <th className="text-left px-4 py-3">Announcement</th>
                           <th className="text-left px-4 py-3">Morning</th>
+                          <th className="text-left px-4 py-3">Type</th>
                           <th className="text-left px-4 py-3">Created</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {alerts.map((alert) => (
-                          <tr key={alert.id} className="hover:bg-background/30 transition-colors">
+                          <tr key={alert.id} className={`hover:bg-background/30 transition-colors ${alert.is_test ? "bg-amber-950/10" : ""}`}>
                             <td className="px-6 py-3 max-w-[220px]">
                               <span className="line-clamp-1 text-foreground">{alert.wine_name}</span>
                             </td>
@@ -412,6 +617,15 @@ export default function Admin() {
                                 <SentBadge sent={alert.morning_alert_sent} label="Sent" date={alert.morning_sent_at} />
                               ) : (
                                 <span className="text-xs text-muted-foreground/40">N/A</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {alert.is_test ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-amber-400">
+                                  <FlaskConical className="h-3 w-3" />Test
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Real</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -434,11 +648,9 @@ export default function Admin() {
           {/* Users */}
           <TabsContent value="users">
             <div className="bg-card border border-border">
-              <div className="p-6 border-b border-border flex items-center justify-between">
-                <div>
-                  <h2 className="font-serif text-2xl">User Management</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{users.length} users total</p>
-                </div>
+              <div className="p-6 border-b border-border">
+                <h2 className="font-serif text-2xl">User Management</h2>
+                <p className="text-sm text-muted-foreground mt-1">{users.length} users total</p>
               </div>
               {users.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -470,14 +682,10 @@ export default function Admin() {
                           <td className="px-4 py-4">
                             <div className="flex gap-2 flex-wrap">
                               {user.is_pro && (
-                                <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">
-                                  Pro
-                                </span>
+                                <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">Pro</span>
                               )}
                               {user.is_admin && (
-                                <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">
-                                  Admin
-                                </span>
+                                <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">Admin</span>
                               )}
                               {!user.is_pro && !user.is_admin && (
                                 <span className="text-xs text-muted-foreground">Free</span>
@@ -495,11 +703,7 @@ export default function Admin() {
                               onClick={() => handleTogglePro(user)}
                               className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
                             >
-                              {togglingId === user.id
-                                ? "..."
-                                : user.is_pro
-                                ? "Remove Pro"
-                                : "Grant Pro"}
+                              {togglingId === user.id ? "..." : user.is_pro ? "Remove Pro" : "Grant Pro"}
                             </Button>
                           </td>
                         </tr>
@@ -516,53 +720,55 @@ export default function Admin() {
           {/* Newsletter */}
           <TabsContent value="newsletter">
             <div className="bg-card border border-border p-8 space-y-6">
-              <h2 className="font-serif text-2xl">Weekly Picks</h2>
-              <p className="text-muted-foreground">Compose and send the editorial newsletter to all Pro subscribers.</p>
-              <form onSubmit={handleWeeklyPicks} className="space-y-4">
+              <h2 className="font-serif text-2xl">Weekly Picks Newsletter</h2>
+              <p className="text-muted-foreground">Compose and send a curated newsletter to all Pro subscribers.</p>
+              <form onSubmit={handleWeeklyPicks} className="space-y-4 max-w-2xl">
                 <Input
-                  placeholder="Subject Line"
+                  placeholder="Subject line"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  required
                   className="bg-background rounded-none border-border"
                 />
                 <Textarea
-                  placeholder="Newsletter Body (Markdown supported)"
+                  placeholder="Email body (plain text or HTML)"
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  required
-                  className="bg-background rounded-none border-border min-h-[300px]"
+                  rows={10}
+                  className="bg-background rounded-none border-border font-mono text-sm"
                 />
                 <Button
                   type="submit"
-                  disabled={sendWeeklyPicks.isPending}
-                  className="rounded-none font-bold tracking-widest uppercase w-full md:w-auto px-12"
+                  disabled={sendWeeklyPicks.isPending || !subject || !body}
+                  className="rounded-none font-bold tracking-widest uppercase"
                 >
-                  {sendWeeklyPicks.isPending ? "Sending..." : "Send to All Pro Subscribers"}
+                  {sendWeeklyPicks.isPending ? "Sending..." : "Send to Pro Subscribers"}
                 </Button>
               </form>
             </div>
           </TabsContent>
         </Tabs>
-
-        <div className="text-center pt-4 pb-2">
-          <a
-            href="mailto:hello@thursdaydrop.ca?subject=Admin suggestion"
-            className="text-xs text-muted-foreground/50 hover:text-primary transition-colors"
-          >
-            Have a suggestion? →
-          </a>
-        </div>
       </div>
     </div>
   );
 }
 
-function StatCard({ title, value }: { title: string; value?: number | string }) {
+function StatCard({
+  title,
+  value,
+  highlight,
+  muted,
+}: {
+  title: string;
+  value?: number | string;
+  highlight?: boolean;
+  muted?: boolean;
+}) {
   return (
-    <div className="bg-card border border-border p-6 flex flex-col justify-center">
-      <div className="text-muted-foreground text-sm uppercase tracking-widest mb-2">{title}</div>
-      <div className="font-serif text-4xl text-primary">{value !== undefined ? value : "—"}</div>
+    <div className={`bg-card border p-6 ${highlight ? "border-primary/40" : "border-border"}`}>
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">{title}</p>
+      <p className={`font-mono text-3xl font-bold ${highlight ? "text-primary" : muted ? "text-muted-foreground" : "text-foreground"}`}>
+        {value ?? "—"}
+      </p>
     </div>
   );
 }

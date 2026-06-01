@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { eq, and, gte, lt, isNotNull } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull, sql } from "drizzle-orm";
 import {
   db,
   alertsTable,
@@ -132,7 +132,7 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
   const pending = await db
     .select()
     .from(alertsTable)
-    .where(eq(alertsTable.announcement_alert_sent, false));
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, false)));
 
   if (pending.length === 0) return { sent: 0 };
 
@@ -319,6 +319,87 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
   }
 
   return { sent };
+}
+
+// ─── Test Mode Alerts (send queued is_test alerts to admin only) ──────────────
+
+export async function sendTestModeAlerts(): Promise<{ sent: number; adminEmail: string | null }> {
+  // Find admin email
+  const [admin] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.is_admin, true))
+    .limit(1);
+
+  if (!admin?.email) return { sent: 0, adminEmail: null };
+
+  const pending = await db
+    .select()
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, true)));
+
+  if (pending.length === 0) return { sent: 0, adminEmail: admin.email };
+
+  const resend = getResendClient();
+  let sent = 0;
+
+  for (const alert of pending) {
+    const [wine] = await db.select().from(winesTable).where(eq(winesTable.id, alert.wine_id)).limit(1);
+    if (!wine) continue;
+    const [cycle] = await db.select().from(releaseCyclesTable).where(eq(releaseCyclesTable.id, wine.release_cycle_id)).limit(1);
+
+    try {
+      await resend.emails.send({
+        from: FROM_ALERTS,
+        to: admin.email,
+        subject: `[TEST] ${wine.wine_name} just appeared on Vintages`,
+        html: buildAnnouncementHtml(
+          { ...wine, program_label: cycle?.program_label ?? null },
+          cycle?.release_opens_at ?? null,
+          null,
+        ),
+      });
+      await db
+        .update(alertsTable)
+        .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
+        .where(eq(alertsTable.id, alert.id));
+      sent++;
+      logger.info({ alertId: alert.id, adminEmail: admin.email }, "Test mode alert sent to admin");
+    } catch (err) {
+      logger.error({ err, alertId: alert.id }, "Failed to send test mode alert");
+    }
+  }
+
+  return { sent, adminEmail: admin.email };
+}
+
+// ─── Pending alert counts ─────────────────────────────────────────────────────
+
+export async function getPendingAlertCounts(): Promise<{
+  real: number;
+  test: number;
+  realUsers: number;
+}> {
+  const [realCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, false)));
+
+  const [testCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, true)));
+
+  const realUsersRows = await db
+    .selectDistinct({ user_id: alertsTable.user_id })
+    .from(alertsTable)
+    .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, false)));
+
+  return {
+    real: Number(realCount?.count ?? 0),
+    test: Number(testCount?.count ?? 0),
+    realUsers: realUsersRows.length,
+  };
 }
 
 // ─── Test alert ───────────────────────────────────────────────────────────────

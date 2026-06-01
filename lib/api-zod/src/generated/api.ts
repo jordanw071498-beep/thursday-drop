@@ -331,7 +331,10 @@ export const GetAdminStatsResponse = zod.object({
   "mrr": zod.number(),
   "total_wines": zod.number(),
   "total_releases": zod.number(),
-  "pending_alerts": zod.number()
+  "pending_alerts": zod.number(),
+  "pending_real_alerts": zod.number(),
+  "pending_test_alerts": zod.number(),
+  "pending_real_users": zod.number()
 })
 
 
