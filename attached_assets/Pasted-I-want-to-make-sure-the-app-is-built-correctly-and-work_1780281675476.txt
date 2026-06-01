@@ -1,0 +1,116 @@
+I want to make sure the app is built correctly and working exactly as intended. Let me explain the full purpose and flow, and I need you to confirm each part is set up correctly or flag what’s missing.
+
+What Thursday Drop is:
+Thursday Drop is a premium wine release notification service for Ontario LCBO Vintages collectors. LCBO Vintages releases new fine and rare wines on their website every week through three programs — Special Offers, Monthly Cellar Features, and Bordeaux Futures. Allocated bottles sell out within minutes of release. Thursday Drop watches the LCBO Vintages website automatically and sends personalized email alerts to subscribers when wines on their personal watchlist become available.
+
+How it should work — confirm each of these is correctly implemented:
+
+1. SCRAPER
+Every Thursday at 9am and 10am Eastern, a cron job automatically visits these three LCBO index pages:
+- https://www.vintagesshoponline.com/vintages/SpecialOffer.aspx
+- https://www.vintagesshoponline.com/vintages/ClassicsCollection.aspx
+- https://www.vintagesshoponline.com/vintages/BordeauxFuture.aspx
+It reads all active program links from each page, extracts the programId from each link, then visits each program page at https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=XXXX&lang=en
+It handles pagination — if a program has multiple pages it scrapes all of them.
+For each wine it captures: wine name, producer, LCBO number, region, region category, vintage year, critic score, score source, price, quantity available, closing date, direct buy URL.
+Each program is tagged with its correct source category — special_offers, monthly_collection, or bordeaux_futures.
+If a program has already been scraped and exists in the database it is skipped to avoid duplicates.
+After scraping, the matching engine runs immediately.
+
+2. MATCHING ENGINE
+After every scrape, the system compares every newly scraped wine against every active user watchlist.
+There are three match types:
+- exact: matches on wine name AND vintage year together
+- wine: matches on wine name only, any vintage
+- producer: matches on producer name only, any wine
+For every match found, an alert row is created in the alerts table with status queued.
+Duplicate alerts are never created — if a user already has a queued or sent alert for that wine they do not get another one.
+
+3. ALERT EMAILS
+Two emails are sent for each match:
+Alert 1 — Announcement alert: sent immediately after the scraper runs. Subject line: [Wine Name] just appeared on Vintages. Body includes: wine name, vintage, producer, region, price, critic score, quantity available, which program it is from (Special Offers / Monthly Collection / Bordeaux Futures), the release opening date, a direct buy link to the LCBO page, and a note saying ordering opens Thursday at 8:30am Eastern.
+Alert 2 — Morning reminder: sent at 7am Eastern on the Thursday the wine officially opens for ordering. Subject line: [Wine Name] opens for ordering in 90 minutes. Body includes: same wine details plus urgency messaging that ordering opens at 8:30am and quantities are limited.
+A backup morning alert run happens at 8am Eastern in case anything was missed at 7am.
+All emails send from alerts@thursdaydrop.ca via Resend.
+Every email has an unsubscribe link at the bottom.
+
+4. WATCHLIST
+Logged in users can add wines to their watchlist in three ways:
+- Track this wine, this vintage only (exact match)
+- Track this wine, any vintage (wine match)
+- Track any wine by this producer (producer match)
+Free tier users are capped at 5 watchlist items.
+Pro tier users have unlimited watchlist items.
+Users can also track by category — Burgundy Grand Cru, Barolo, Super Tuscans etc — Pro only.
+There is a curated list of 40 suggested wines that users can quickly add to their watchlist.
+
+5. RELEASE PAGE
+Publicly visible — no login required.
+Shows all currently active programs organized into three tabs: Special Offers, Monthly Collection, Bordeaux Futures.
+Within each tab, programs are listed in the same order they appear on the LCBO website.
+All sections are collapsed by default — users click to expand and see wines.
+Each program shows: program name, number of wines, closing date, status (Preview or Available), and a link to the program on LCBO Vintages.
+Preview programs show a badge saying Opens [date] — users can add to watchlist in advance.
+Each wine row has a + button that opens a popover with three tracking options.
+
+6. WINE HISTORY
+Shows every wine ever scraped, stored permanently in the database.
+Searchable by wine name, producer, region.
+Filterable by year, then program type, then individual release.
+Paginated at 50 wines per page.
+Shows which release each wine appeared in and whether it sold out.
+Full history access is a Pro-only feature.
+
+7. AUTH
+Custom auth system — no Supabase Auth.
+Passwords hashed with bcrypt, minimum 8 characters, requires uppercase, number, and special character.
+Session tokens stored in database and localStorage.
+Protected routes: /watchlist, /account, /history require login.
+Admin route /admin requires is_admin flag.
+Admin login at /admin-login using ADMIN_PASSWORD environment variable.
+
+8. STRIPE SUBSCRIPTIONS
+Pro plan at $4.99/month only — no annual plan.
+Stripe checkout handles payment.
+After successful payment, is_pro is set to true on the user profile.
+Webhook handles checkout.session.completed and customer.subscription.deleted events.
+Cancellation available from Account page.
+is_pro persists correctly across page navigation, refresh, and sign out and back in.
+
+9. ADMIN DASHBOARD
+Accessible only at /admin-login with ADMIN_PASSWORD.
+Tabs: Scraper, Matches and Alerts, Weekly Picks Email, Overview.
+Scraper tab: shows all currently active programs with wine counts, button to manually trigger scraper.
+Alerts tab: shows all queued alerts with wine name, user email, program, alert type (announcement or morning), sent status. Buttons to send all pending alerts or send individual alerts.
+Weekly Picks tab: text editor to write Wednesday preview email, send button that delivers to all Pro subscribers via Resend.
+Overview tab: total subscribers, Pro subscribers, MRR.
+
+10. EMAILS
+All emails send from alerts@thursdaydrop.ca via Resend.
+Contact form on /contact sends to hello@thursdaydrop.ca.
+Every alert email has an unsubscribe link.
+Unsubscribing sets alerts_enabled to false on the user profile — stops future alerts but does not delete the account.
+
+11. LEGAL PAGES
+Terms of Service at /terms.
+Privacy Policy at /privacy.
+FAQ at /faq.
+Contact at /contact.
+All linked in the footer.
+
+12. GENERAL
+Site is deployed at thursdaydrop.ca via Vercel.
+All emails send from alerts@thursdaydrop.ca — not onboarding@resend.dev.
+Founding member pricing banner showing $2.99/month for first 30 days.
+Testimonials section on landing page.
+Founder story section on landing page.
+Sign out confirmation popup.
+Account deletion available under Data and Privacy on Account page — deletes personal data, anonymizes watchlist items.
+Footer includes: Thursday Drop logo, FAQ, Contact, Terms, Privacy, copyright, not affiliated with LCBO disclaimer, Built in Toronto.
+
+Please go through every single one of these points and tell me:
+- Confirmed working correctly
+- Partially implemented — here is what is missing
+- Not implemented — needs to be built
+
+For anything not fully working, fix it now and confirm when done. This is a pre-launch audit — I need everything working correctly before going live.”

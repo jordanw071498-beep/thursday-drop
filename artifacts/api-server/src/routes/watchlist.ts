@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, watchlistItemsTable, watchlistCategoriesTable } from "@workspace/db";
+import { queueAlertsForNewWatchlistItem } from "../lib/scraper.js";
+import { sendPendingAlerts } from "../lib/email.js";
 import {
   GetWatchlistResponse,
   AddToWatchlistBody,
@@ -73,6 +75,23 @@ router.post("/watchlist", async (req, res): Promise<void> => {
       match_threshold: parsed.data.match_threshold?.toString() ?? null,
     })
     .returning();
+
+  // Queue alerts for any wines already in the current active release that match
+  // this new item — so users who add a wine after Thursday's scrape still get notified.
+  try {
+    const queued = await queueAlertsForNewWatchlistItem(profile.id, {
+      wine_name: item.wine_name,
+      producer: item.producer,
+      vintage: item.vintage,
+      match_type: matchType,
+    });
+    if (queued > 0) {
+      await sendPendingAlerts();
+      req.log.info({ queued }, "Late-addition alerts queued and sent for new watchlist item");
+    }
+  } catch (err) {
+    req.log.error({ err }, "Failed to queue alerts for new watchlist item");
+  }
 
   res.status(201).json(serializeWatchlistItem(item));
 });

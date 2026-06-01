@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import { db, releaseCyclesTable, winesTable, watchlistItemsTable, watchlistCategoriesTable, alertsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
 
 const BASE = "https://www.vintagesshoponline.com/vintages";
@@ -373,6 +373,74 @@ async function runMatchingEngine(insertedWines: InsertedWine[]): Promise<number>
           .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name })
           .onConflictDoNothing();
         matched++;
+      } catch {
+        // ignore duplicate conflicts
+      }
+    }
+  }
+
+  return matched;
+}
+
+/**
+ * When a user adds a new watchlist item, check all currently active wines and
+ * queue announcement alerts for any that already match. Called immediately after
+ * the watchlist item is inserted so late-joining users get notified.
+ */
+export async function queueAlertsForNewWatchlistItem(
+  userId: string,
+  item: { wine_name: string; producer: string | null; vintage: string | null; match_type: string },
+): Promise<number> {
+  const now = new Date();
+  const allCycles = await db.select().from(releaseCyclesTable);
+  const activeCycleIds = allCycles
+    .filter((c) => {
+      if (!c.closing_date) return true;
+      const d = new Date(c.closing_date);
+      return isNaN(d.getTime()) || d >= now;
+    })
+    .map((c) => c.id);
+
+  if (activeCycleIds.length === 0) return 0;
+
+  const wines = await db
+    .select({
+      id: winesTable.id,
+      wine_name: winesTable.wine_name,
+      producer: winesTable.producer,
+      vintage: winesTable.vintage,
+      region: winesTable.region,
+      region_category: winesTable.region_category,
+    })
+    .from(winesTable)
+    .where(inArray(winesTable.release_cycle_id, activeCycleIds));
+
+  let matched = 0;
+  for (const wine of wines) {
+    let matches = false;
+    if (item.match_type === "producer") {
+      if (wine.producer && item.producer) {
+        matches =
+          wine.producer.toLowerCase().includes(item.producer.toLowerCase()) ||
+          item.producer.toLowerCase().includes(wine.producer.toLowerCase());
+      }
+    } else {
+      const nameHit =
+        wine.wine_name.toLowerCase().includes(item.wine_name.toLowerCase()) ||
+        item.wine_name.toLowerCase().includes(wine.wine_name.toLowerCase());
+      if (nameHit) {
+        matches = item.match_type === "wine" || !item.vintage || wine.vintage === item.vintage;
+      }
+    }
+
+    if (matches) {
+      try {
+        await db
+          .insert(alertsTable)
+          .values({ user_id: userId, wine_id: wine.id, wine_name: wine.wine_name })
+          .onConflictDoNothing();
+        matched++;
+        logger.info({ userId, wineId: wine.id, wineName: wine.wine_name }, "Alert queued for late watchlist addition");
       } catch {
         // ignore duplicate conflicts
       }

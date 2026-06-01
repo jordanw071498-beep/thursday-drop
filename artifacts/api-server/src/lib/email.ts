@@ -148,11 +148,11 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
 
     if (!profile?.email) continue;
 
-    // Skip users who have unsubscribed
+    // Skip users who have unsubscribed — mark both flags so we never retry
     if (profile.alerts_enabled === false) {
       await db
         .update(alertsTable)
-        .set({ sent: true, sent_at: new Date() })
+        .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
         .where(eq(alertsTable.id, alert.id));
       continue;
     }
@@ -281,7 +281,14 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
   for (const row of due) {
     const { alert, wine, profile } = row;
     if (!profile?.email) continue;
-    if (profile.alerts_enabled === false) continue;
+    // Skip unsubscribed users — mark the flag so we never retry
+    if (profile.alerts_enabled === false) {
+      await db
+        .update(alertsTable)
+        .set({ morning_alert_sent: true, morning_sent_at: new Date() })
+        .where(eq(alertsTable.id, alert.id));
+      continue;
+    }
 
     let unsubToken = profile.unsubscribe_token;
     if (!unsubToken) {

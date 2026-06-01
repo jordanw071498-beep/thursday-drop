@@ -1,0 +1,51 @@
+Paste this into Replit AI chat:
+
+“I need a complete audit and bulletproof implementation of the scraper and alert system. This is the core product and it needs to work perfectly. Please go through every point below and confirm it works correctly or fix it immediately.
+
+SCRAPER BEHAVIOR:
+
+1. The scraper runs twice every Thursday — at 9am and 10am Eastern. When it runs the second time at 10am, it must NOT create duplicate alerts for wines it already processed at 9am. Only process wines that are genuinely new since the last scrape. Confirm how duplicate detection works — show me the exact logic.
+
+2. If a wine appeared in a previous release cycle months ago, sold out, and now reappears in a new release cycle — this counts as a NEW wine and alerts SHOULD be sent. The duplicate detection must be scoped to the current release cycle only, not all time. A wine reappearing in a new program is a new event and must trigger fresh alerts.
+
+3. The scraper must only create alerts for wines that match a user’s watchlist. It must never send emails about wines that nobody is watching. Confirm this is the case.
+
+ALERT LOGIC — MAXIMUM TWO ALERTS PER USER PER WINE PER RELEASE CYCLE:
+
+4. Alert 1 — Announcement alert. Sent once, immediately after the scraper finds a new matching wine. Never sent twice for the same wine in the same release cycle.
+
+5. Alert 2 — Morning reminder. Sent once, at 7am Eastern on the Thursday the wine officially opens for ordering. Never sent twice for the same wine in the same release cycle.
+
+6. If a user already received both alerts for a wine in this release cycle, they must never receive another alert for that wine in this cycle — even if the scraper runs again, even if the admin triggers a manual scrape.
+
+7. The alerts table must have a field called announcement_alert_sent (boolean) and morning_alert_sent (boolean) for every alert row. Before sending any email, check these fields. If already true, skip. After sending, immediately set to true.
+
+8. If a user adds a wine to their watchlist AFTER the scraper already ran this cycle and the wine is already in the database — they should still receive the announcement alert for that wine since it is new to them. Build logic that checks for existing wines in the current release against newly added watchlist items and queues alerts accordingly.
+
+EMAIL SENDING:
+
+9. Emails only ever send from alerts@thursdaydrop.ca — never from onboarding@resend.dev or any other address. Confirm this is set correctly in the codebase.
+
+10. Every alert email must include an unsubscribe link. Clicking it sets alerts_enabled to false on the user profile. Once alerts_enabled is false, no alert emails are ever sent to that user until they re-enable alerts from their account page.
+
+11. Before sending any email, always check alerts_enabled on the user profile. If false, skip the email entirely and mark the alert as skipped not sent.
+
+TESTING — do all of this right now:
+
+12. Manually trigger the scraper from the admin dashboard and show me the complete output — how many programs found, how many wines per program, how many watchlist matches found, how many alerts queued.
+
+13. Show me the exact contents of the alerts table after the scraper runs — list every row with user_id, wine_name, announcement_alert_sent, morning_alert_sent.
+
+14. Send a test announcement alert and show me the exact email that arrives — subject line, full body, from address, unsubscribe link.
+
+15. Trigger the morning alert manually and show me that email too.
+
+16. Run the scraper a second time immediately after and confirm zero new alerts are created — show me the duplicate detection working.
+
+17. Add a wine to the watchlist that is already in the current release and confirm an announcement alert is immediately queued for that wine.
+
+18. Show me exactly how a wine reappearing in a new release cycle is handled — confirm it generates fresh alerts.
+
+Fix every gap you find and confirm each of the 18 points above is working correctly before responding.”
+
+This is the most thorough audit possible of the core product. Come back with exactly what Replit says — especially the test outputs from points 12 through 18.
