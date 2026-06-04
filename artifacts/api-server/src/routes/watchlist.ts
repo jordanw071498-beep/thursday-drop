@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
 import { db, watchlistItemsTable, watchlistCategoriesTable, wineSuggestionsTable } from "@workspace/db";
+import { upsertSuggestion } from "../lib/suggestions.js";
 import { queueAlertsForNewWatchlistItem } from "../lib/scraper.js";
 import { sendPendingAlerts } from "../lib/email.js";
 import {
@@ -117,6 +118,18 @@ router.post("/watchlist", async (req, res): Promise<void> => {
       match_threshold: parsed.data.match_threshold?.toString() ?? null,
     })
     .returning();
+
+  // Grow the suggestions corpus with user-entered names — fire-and-forget.
+  const isProducerMatch = matchType === "producer";
+  upsertSuggestion(
+    {
+      display_name: item.wine_name,
+      producer: isProducerMatch ? item.wine_name : (item.producer ?? null),
+      wine_name: isProducerMatch ? null : item.wine_name,
+      type: isProducerMatch ? "producer" : "wine",
+    },
+    "watchlist",
+  ).catch((err) => req.log.error({ err }, "Failed to upsert watchlist suggestion"));
 
   // Queue alerts for any wines already in the current active release that match
   // this new item — so users who add a wine after Thursday's scrape still get notified.

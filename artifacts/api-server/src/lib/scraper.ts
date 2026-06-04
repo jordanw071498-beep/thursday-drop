@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { db, releaseCyclesTable, winesTable, watchlistItemsTable, watchlistCategoriesTable, alertsTable } from "@workspace/db";
+import { upsertSuggestions } from "./suggestions.js";
 import { eq, inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
 
@@ -588,6 +589,21 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
         .returning();
       inserted.push({ id: row.id, wine_name: row.wine_name, producer: row.producer, vintage: row.vintage, region: row.region, region_category: row.region_category });
     }
+
+    // Populate suggestions table from newly scraped wines — fire-and-forget so
+    // a suggestion failure never blocks the scrape or alert pipeline.
+    upsertSuggestions(
+      inserted.flatMap((w) => {
+        const entries: Parameters<typeof upsertSuggestions>[0] = [
+          { display_name: w.wine_name, wine_name: w.wine_name, producer: w.producer, type: "wine" },
+        ];
+        if (w.producer) {
+          entries.push({ display_name: w.producer, wine_name: null, producer: w.producer, type: "producer" });
+        }
+        return entries;
+      }),
+      "scraped",
+    ).catch((err) => logger.error({ err }, "Failed to upsert wine suggestions from scrape"));
 
     const alertsQueued = await runMatchingEngine(inserted, options.testMode ?? false);
     totalAlertsMatched += alertsQueued;

@@ -367,6 +367,38 @@ router.get("/admin/watchlists", async (req, res): Promise<void> => {
   });
 });
 
+router.post("/admin/seed-spirits", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const { seedSpiritsSuggestions } = await import("../lib/spirits-seed.js");
+    const result = await seedSpiritsSuggestions();
+    res.json({ success: true, inserted: result.inserted });
+  } catch (err) {
+    logger.error({ err }, "Spirits seed error");
+    res.status(500).json({ success: false, error: "Spirits seed failed. Check logs." });
+  }
+});
+
+router.post("/admin/import-wikidata", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const { importWikidata } = await import("../lib/wikidata.js");
+    const result = await importWikidata();
+    res.json({ success: true, total: result.total, by_entity: result.by_entity });
+  } catch (err) {
+    logger.error({ err }, "Wikidata import error");
+    res.status(500).json({ success: false, error: "Wikidata import failed. Check logs." });
+  }
+});
+
 router.post("/admin/send-picks", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });

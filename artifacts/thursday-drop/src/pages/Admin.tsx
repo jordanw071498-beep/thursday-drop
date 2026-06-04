@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User, List } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User, List, Database } from "lucide-react";
 
 interface AlertRow {
   id: number;
@@ -161,6 +161,8 @@ export default function Admin() {
   const sendMorningAlerts = useAdminPost("/admin/send-morning-alerts", token);
   const sendTestAlert = useAdminPost("/admin/test-alert", token);
   const sendTestModeAlerts = useAdminPost("/admin/send-test-mode-alerts", token);
+  const importWikidata = useAdminPost("/admin/import-wikidata", token);
+  const seedSpirits = useAdminPost("/admin/seed-spirits", token);
   const { toast } = useToast();
 
   const [subject, setSubject] = useState("");
@@ -463,6 +465,81 @@ export default function Admin() {
               >
                 {testMode ? "Run Scraper (Test Mode)" : "Run Scraper Now"}
               </Button>
+            </div>
+
+            {/* Suggestions corpus */}
+            <div className="bg-card border border-border p-8 space-y-6">
+              <div className="flex items-start gap-3">
+                <Database className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <h2 className="font-serif text-2xl">Autocomplete Corpus</h2>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Import producer names from Wikidata (CC0) — wineries, distilleries, and breweries. Existing entries are deduplicated; popularity counts are preserved.
+                  </p>
+                </div>
+              </div>
+
+              {importWikidata.data && (
+                <div className="border border-emerald-700/40 bg-emerald-950/20 p-4 text-sm space-y-1">
+                  <p className="text-emerald-400 font-medium">
+                    Import complete — {(importWikidata.data as any).total?.toLocaleString() ?? 0} entries processed
+                  </p>
+                  {((importWikidata.data as any).by_entity ?? []).map((e: any) => (
+                    <p key={e.qid} className="text-muted-foreground text-xs">
+                      {e.label}: {e.fetched?.toLocaleString() ?? 0} fetched
+                      {e.error && <span className="text-red-400 ml-2">({e.error})</span>}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() =>
+                    importWikidata.mutate(undefined, {
+                      onSuccess: (data: any) => {
+                        if (data?.success === false) {
+                          toast({ title: "Wikidata import failed", description: data.error, variant: "destructive" });
+                        } else {
+                          toast({ title: "Wikidata Import Complete", description: `${data?.total?.toLocaleString() ?? 0} producer entries processed` });
+                        }
+                      },
+                      onError: () => toast({ title: "Wikidata import failed", variant: "destructive" }),
+                    })
+                  }
+                  disabled={importWikidata.isPending}
+                  variant="outline"
+                  className="rounded-none tracking-widest uppercase font-bold"
+                >
+                  {importWikidata.isPending ? "Importing from Wikidata…" : "Import Wikidata Producers"}
+                </Button>
+
+                <Button
+                  onClick={() =>
+                    seedSpirits.mutate(undefined, {
+                      onSuccess: (data: any) => {
+                        if (data?.success === false) {
+                          toast({ title: "Spirits seed failed", description: data.error, variant: "destructive" });
+                        } else {
+                          toast({ title: "Spirits Seed Complete", description: `${data?.inserted?.toLocaleString() ?? 0} Scotch/spirits entries processed` });
+                        }
+                      },
+                      onError: () => toast({ title: "Spirits seed failed", variant: "destructive" }),
+                    })
+                  }
+                  disabled={seedSpirits.isPending}
+                  variant="outline"
+                  className="rounded-none tracking-widest uppercase font-bold"
+                >
+                  {seedSpirits.isPending ? "Seeding Spirits…" : "Seed Scotch & Spirits"}
+                </Button>
+              </div>
+
+              {seedSpirits.data && (
+                <p className="text-sm text-emerald-400">
+                  Spirits seed complete — {(seedSpirits.data as any).inserted?.toLocaleString() ?? 0} entries processed
+                </p>
+              )}
             </div>
           </TabsContent>
 
