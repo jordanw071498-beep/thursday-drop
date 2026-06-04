@@ -10,6 +10,7 @@
     "dry-run-alerts": "tsx ./src/dry-run-alerts.ts",
     "seed-wine-suggestions": "tsx ./src/seed-wine-suggestions.ts",
     "seed-collectible-wines": "tsx ./src/seed-collectible-wines.ts",
+    "seed-collectible-wines-2": "tsx ./src/seed-collectible-wines-2.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
