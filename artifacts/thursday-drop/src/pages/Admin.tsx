@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User, List } from "lucide-react";
 
 interface AlertRow {
   id: number;
@@ -29,6 +29,29 @@ interface UserRow {
   is_pro: boolean;
   is_admin: boolean;
   created_at: string;
+}
+
+interface WatchlistItem {
+  id: number;
+  wine_name: string;
+  producer: string | null;
+  vintage: string | null;
+  match_type: string;
+  created_at: string;
+}
+
+interface WatchlistCategory {
+  id: number;
+  category: string;
+  created_at: string;
+}
+
+interface WatchlistUser {
+  user_id: string;
+  email: string;
+  is_pro: boolean;
+  items: WatchlistItem[];
+  categories: WatchlistCategory[];
 }
 
 function useAdminFetch<T>(path: string, token: string | null) {
@@ -131,6 +154,7 @@ export default function Admin() {
   const { data: stats, refetch: refetchStats } = useGetAdminStats();
   const { data: alertsData, refetch: refetchAlerts } = useAdminFetch<{ alerts: AlertRow[] }>("/admin/alerts", token);
   const { data: usersData, refetch: refetchUsers } = useAdminFetch<{ users: UserRow[] }>("/admin/users", token);
+  const { data: watchlistsData } = useAdminFetch<{ users: WatchlistUser[]; total_items: number; total_categories: number; total_users: number }>("/admin/watchlists", token);
 
   const sendAlerts = useSendAlerts();
   const sendWeeklyPicks = useSendWeeklyPicks();
@@ -314,7 +338,7 @@ export default function Admin() {
 
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="bg-card border border-border rounded-none h-12 w-full justify-start p-0 mb-8 overflow-x-auto">
-            {["overview", "scraper", "alerts", "users", "newsletter"].map((tab) => (
+            {["overview", "scraper", "alerts", "users", "watchlists", "newsletter"].map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
@@ -717,6 +741,97 @@ export default function Admin() {
             </div>
           </TabsContent>
 
+          {/* Watchlists */}
+          <TabsContent value="watchlists">
+            <div className="space-y-6">
+              {/* Summary counts */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-card border border-border p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Users with Watchlists</p>
+                  <p className="font-mono text-2xl font-bold">{watchlistsData?.total_users ?? "—"}</p>
+                </div>
+                <div className="bg-card border border-border p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Wine Items</p>
+                  <p className="font-mono text-2xl font-bold">{watchlistsData?.total_items ?? "—"}</p>
+                </div>
+                <div className="bg-card border border-border p-4">
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Category Items</p>
+                  <p className="font-mono text-2xl font-bold">{watchlistsData?.total_categories ?? "—"}</p>
+                </div>
+              </div>
+
+              {/* Per-user watchlist cards */}
+              {!watchlistsData ? (
+                <div className="bg-card border border-border p-16 text-center text-muted-foreground">Loading…</div>
+              ) : watchlistsData.users.length === 0 ? (
+                <div className="bg-card border border-border p-16 text-center text-muted-foreground">No watchlist entries yet.</div>
+              ) : (
+                <div className="space-y-4">
+                  {watchlistsData.users.map((user) => {
+                    const total = user.items.length + user.categories.length;
+                    return (
+                      <div key={user.user_id} className="bg-card border border-border">
+                        {/* User header */}
+                        <div className="px-6 py-4 border-b border-border flex items-center gap-3">
+                          <List className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="font-medium text-foreground">{user.email}</span>
+                          {user.is_pro && (
+                            <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">Pro</span>
+                          )}
+                          <span className="ml-auto text-xs text-muted-foreground font-mono">{total} {total === 1 ? "item" : "items"}</span>
+                        </div>
+
+                        {/* Items table */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-border text-xs uppercase tracking-widest text-muted-foreground">
+                                <th className="text-left px-6 py-2">Name / Producer / Category</th>
+                                <th className="text-left px-4 py-2">Type</th>
+                                <th className="text-left px-4 py-2">Vintage</th>
+                                <th className="text-left px-4 py-2">Added</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {user.items.map((item) => (
+                                <tr key={`item-${item.id}`} className="hover:bg-background/30 transition-colors">
+                                  <td className="px-6 py-3 text-foreground">
+                                    {item.match_type === "producer" ? item.producer : item.wine_name}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <MatchTypeBadge type={item.match_type} />
+                                  </td>
+                                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+                                    {item.vintage ?? <span className="text-muted-foreground/40">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                                    {new Date(item.created_at).toLocaleDateString("en-CA")}
+                                  </td>
+                                </tr>
+                              ))}
+                              {user.categories.map((cat) => (
+                                <tr key={`cat-${cat.id}`} className="hover:bg-background/30 transition-colors">
+                                  <td className="px-6 py-3 text-foreground">{cat.category}</td>
+                                  <td className="px-4 py-3">
+                                    <MatchTypeBadge type="category" />
+                                  </td>
+                                  <td className="px-4 py-3 text-muted-foreground/40 text-xs">—</td>
+                                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                                    {new Date(cat.created_at).toLocaleDateString("en-CA")}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
           {/* Newsletter */}
           <TabsContent value="newsletter">
             <div className="bg-card border border-border p-8 space-y-6">
@@ -749,6 +864,21 @@ export default function Admin() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+function MatchTypeBadge({ type }: { type: string }) {
+  const map: Record<string, { label: string; className: string }> = {
+    exact: { label: "Exact Wine", className: "bg-primary/15 text-primary border-primary/30" },
+    wine: { label: "Any Vintage", className: "bg-blue-900/20 text-blue-400 border-blue-700/30" },
+    producer: { label: "Producer", className: "bg-violet-900/20 text-violet-400 border-violet-700/30" },
+    category: { label: "Category", className: "bg-emerald-900/20 text-emerald-400 border-emerald-700/30" },
+  };
+  const config = map[type] ?? { label: type, className: "bg-muted text-muted-foreground border-border" };
+  return (
+    <span className={`text-xs px-2 py-0.5 border uppercase tracking-widest ${config.className}`}>
+      {config.label}
+    </span>
   );
 }
 

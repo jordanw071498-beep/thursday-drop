@@ -7,6 +7,7 @@ import {
   releaseCyclesTable,
   alertsTable,
   watchlistItemsTable,
+  watchlistCategoriesTable,
   emailSubscribersTable,
 } from "@workspace/db";
 import {
@@ -287,6 +288,83 @@ router.post("/admin/users/:id/toggle-pro", async (req, res): Promise<void> => {
     .returning();
 
   res.json({ id: updated.id, email: updated.email, is_pro: updated.is_pro });
+});
+
+router.get("/admin/watchlists", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  // Fetch all watchlist items with user email
+  const items = await db
+    .select({
+      id: watchlistItemsTable.id,
+      user_id: watchlistItemsTable.user_id,
+      user_email: profilesTable.email,
+      user_is_pro: profilesTable.is_pro,
+      wine_name: watchlistItemsTable.wine_name,
+      producer: watchlistItemsTable.producer,
+      vintage: watchlistItemsTable.vintage,
+      match_type: watchlistItemsTable.match_type,
+      created_at: watchlistItemsTable.created_at,
+    })
+    .from(watchlistItemsTable)
+    .leftJoin(profilesTable, eq(watchlistItemsTable.user_id, profilesTable.id))
+    .orderBy(desc(watchlistItemsTable.created_at));
+
+  // Fetch all watchlist categories with user email
+  const categories = await db
+    .select({
+      id: watchlistCategoriesTable.id,
+      user_id: watchlistCategoriesTable.user_id,
+      user_email: profilesTable.email,
+      user_is_pro: profilesTable.is_pro,
+      category: watchlistCategoriesTable.category,
+      created_at: watchlistCategoriesTable.created_at,
+    })
+    .from(watchlistCategoriesTable)
+    .leftJoin(profilesTable, eq(watchlistCategoriesTable.user_id, profilesTable.id))
+    .orderBy(desc(watchlistCategoriesTable.created_at));
+
+  // Group into per-user structure
+  const userMap = new Map<string, {
+    user_id: string;
+    email: string;
+    is_pro: boolean;
+    items: typeof items;
+    categories: typeof categories;
+  }>();
+
+  for (const row of items) {
+    const uid = row.user_id ?? "unknown";
+    if (!userMap.has(uid)) {
+      userMap.set(uid, { user_id: uid, email: row.user_email ?? "unknown", is_pro: row.user_is_pro ?? false, items: [], categories: [] });
+    }
+    userMap.get(uid)!.items.push(row);
+  }
+  for (const row of categories) {
+    const uid = row.user_id;
+    if (!userMap.has(uid)) {
+      userMap.set(uid, { user_id: uid, email: row.user_email ?? "unknown", is_pro: row.user_is_pro ?? false, items: [], categories: [] });
+    }
+    userMap.get(uid)!.categories.push(row);
+  }
+
+  const users = Array.from(userMap.values())
+    .sort((a, b) => a.email.localeCompare(b.email))
+    .map((u) => ({
+      ...u,
+      items: u.items.map((i) => ({ ...i, created_at: i.created_at.toISOString() })),
+      categories: u.categories.map((c) => ({ ...c, created_at: c.created_at.toISOString() })),
+    }));
+
+  res.json({
+    users,
+    total_items: items.length,
+    total_categories: categories.length,
+    total_users: users.length,
+  });
 });
 
 router.post("/admin/send-picks", async (req, res): Promise<void> => {
