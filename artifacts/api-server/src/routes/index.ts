@@ -10,6 +10,7 @@ import stripeRouter from "./stripe";
 import adminRouter from "./admin";
 import scrapeRouter from "./scrape";
 import morningAlertsRouter from "./morning-alerts";
+import thursdayCronRouter from "./thursday-cron";
 import accountRouter from "./account";
 
 const router: IRouter = Router();
@@ -26,5 +27,6 @@ router.use(stripeRouter);
 router.use(scrapeRouter);
 router.use(adminRouter);
 router.use(morningAlertsRouter);
+router.use(thursdayCronRouter);
 
 export default router;
