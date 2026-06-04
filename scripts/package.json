@@ -11,6 +11,7 @@
     "seed-wine-suggestions": "tsx ./src/seed-wine-suggestions.ts",
     "seed-collectible-wines": "tsx ./src/seed-collectible-wines.ts",
     "seed-collectible-wines-2": "tsx ./src/seed-collectible-wines-2.ts",
+    "seed-collectible-wines-3": "tsx ./src/seed-collectible-wines-3.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
