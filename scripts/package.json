@@ -9,6 +9,7 @@
     "seed-products": "tsx ./src/seed-products.ts",
     "dry-run-alerts": "tsx ./src/dry-run-alerts.ts",
     "seed-wine-suggestions": "tsx ./src/seed-wine-suggestions.ts",
+    "seed-collectible-wines": "tsx ./src/seed-collectible-wines.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -163,6 +163,7 @@ export default function Admin() {
   const sendTestModeAlerts = useAdminPost("/admin/send-test-mode-alerts", token);
   const importWikidata = useAdminPost("/admin/import-wikidata", token);
   const seedSpirits = useAdminPost("/admin/seed-spirits", token);
+  const seedCollectible = useAdminPost("/admin/seed-collectible-wines", token);
   const { toast } = useToast();
 
   const [subject, setSubject] = useState("");
@@ -533,11 +534,36 @@ export default function Admin() {
                 >
                   {seedSpirits.isPending ? "Seeding Spirits…" : "Seed Scotch & Spirits"}
                 </Button>
+
+                <Button
+                  onClick={() =>
+                    seedCollectible.mutate(undefined, {
+                      onSuccess: (data: any) => {
+                        if (data?.success === false) {
+                          toast({ title: "Collectible wines seed failed", description: data.error, variant: "destructive" });
+                        } else {
+                          toast({ title: "Collectible Wines Seeded", description: `${data?.inserted?.toLocaleString() ?? 0} entries processed` });
+                        }
+                      },
+                      onError: () => toast({ title: "Collectible wines seed failed", variant: "destructive" }),
+                    })
+                  }
+                  disabled={seedCollectible.isPending}
+                  variant="outline"
+                  className="rounded-none tracking-widest uppercase font-bold"
+                >
+                  {seedCollectible.isPending ? "Seeding…" : "Seed Collectible Wines"}
+                </Button>
               </div>
 
               {seedSpirits.data && (
                 <p className="text-sm text-emerald-400">
                   Spirits seed complete — {(seedSpirits.data as any).inserted?.toLocaleString() ?? 0} entries processed
+                </p>
+              )}
+              {seedCollectible.data && (
+                <p className="text-sm text-emerald-400">
+                  Collectible wines seed complete — {(seedCollectible.data as any).inserted?.toLocaleString() ?? 0} entries processed
                 </p>
               )}
             </div>

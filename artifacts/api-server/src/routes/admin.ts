@@ -367,6 +367,22 @@ router.get("/admin/watchlists", async (req, res): Promise<void> => {
   });
 });
 
+router.post("/admin/seed-collectible-wines", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const { seedCollectibleWines } = await import("../lib/collectible-wines-seed.js");
+    const result = await seedCollectibleWines();
+    res.json({ success: true, inserted: result.inserted });
+  } catch (err) {
+    logger.error({ err }, "Collectible wines seed error");
+    res.status(500).json({ success: false, error: "Seed failed. Check logs." });
+  }
+});
+
 router.post("/admin/seed-spirits", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
