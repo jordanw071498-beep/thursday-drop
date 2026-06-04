@@ -1,0 +1,51 @@
+Please make the following production fixes to Thursday Drop’s scraper + email alert system.
+
+1. Preserve Vintages offer ordering permanently
+   The app should always mirror the order from Vintages, because Vintages lists offers from most recently announced to least recent. Do not randomly sort or alphabetize. The newest/latest announced offer should appear first in the app and emails. Please enforce this in scraper/output logic so I don’t need to keep reminding it.
+
+2. Fix release-morning reminders
+   Users with watchlisted wines dropping that morning must receive a reminder before ordering opens at 8:30am ET. Please verify this is working end-to-end. These reminder emails must be sent before 8:30am ET, not after.
+
+3. Batch emails instead of sending one email per wine
+   Right now users receive many separate emails, e.g. 9:10–9:27am. Going forward, each subscriber should receive at most two alert emails per week:
+
+* One “New watchlist matches announced” email containing all newly announced Vintages wines that match their watchlist.
+* One “Ordering opens today” reminder email containing all watchlisted wines that are opening for ordering that morning.
+
+Do not send one email per wine. Group all matching wines into a single digest-style email per user per alert type.
+
+4. Use the actual release/opening date
+   The email currently says: “Ordering opens TBA at 8:30am Eastern — be ready.”
+
+Please parse/use the actual release date when available. The Vintages page text usually includes it, e.g.:
+
+“Preview this exclusive new offer before it goes live for ordering on June 11, 2026 08:30.”
+
+Example URL:
+https://www.vintagesshoponline.com/vintages/Public/OrderProgramProducts.aspx?programId=1310
+
+Use that date in the app and email instead of “TBA.”
+
+5. Improve email design/readability
+   The current yellow background with white text for labels like “Lafite / William Fevre (May26) Post Event Offer” is hard to read. Please update the email styling so those labels have strong contrast and look premium/professional.
+
+6. Make email purpose obvious
+   For both email types, make the heading extremely clear:
+
+* Announcement email: “New watchlist wines announced”
+* Morning reminder email: “Reminder: your watchlist wines open for ordering today at 8:30am ET”
+
+Users should immediately understand whether the email is:
+
+* a new release announcement for next week, or
+* a same-morning ordering reminder.
+
+7. Deduplication expectations
+   Batching should still preserve all existing dedupe guarantees:
+
+* No duplicate emails if the cron runs twice.
+* No duplicate wine rows in the same user’s email.
+* A user watching the same wine through multiple watchlist rules should only see that wine once in the email.
+* Announcement and morning reminder should remain separate stages.
+
+Please inspect the current implementation, make the fixes, push to GitHub/Vercel, and tell me exactly which files changed and how the new batching/deduping works.

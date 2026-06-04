@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 import { db, releaseCyclesTable, winesTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
 import {
@@ -43,7 +43,8 @@ router.get("/releases/active", async (_req, res): Promise<void> => {
       const wines = await db
         .select()
         .from(winesTable)
-        .where(eq(winesTable.release_cycle_id, cycle.id));
+        .where(eq(winesTable.release_cycle_id, cycle.id))
+        .orderBy(asc(winesTable.id));
       return {
         release: serializeRelease(cycle),
         wines: wines.map(serializeWine),

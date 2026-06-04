@@ -114,7 +114,8 @@ function generateWineKey(name: string): string {
 
 /**
  * Compute the Thursday of this week (or today if Thursday) at 8:30am Eastern.
- * 8:30am EST = 13:30 UTC. Returns null for preview programs.
+ * Used as a fallback when the Vintages page doesn't contain an explicit date.
+ * 8:30am EDT (summer) = 12:30 UTC. 8:30am EST (winter) = 13:30 UTC.
  */
 function computeReleaseOpensAt(status: "preview" | "available"): Date | null {
   if (status !== "available") return null;
@@ -123,8 +124,42 @@ function computeReleaseOpensAt(status: "preview" | "available"): Date | null {
   const daysToThursday = utcDay <= 4 ? 4 - utcDay : 11 - utcDay;
   const thursday = new Date(now);
   thursday.setUTCDate(thursday.getUTCDate() + daysToThursday);
-  thursday.setUTCHours(13, 30, 0, 0); // 8:30am EST = 13:30 UTC
+  // Determine EDT vs EST: DST is active April–October (months 3–9 in 0-indexed)
+  const month = thursday.getUTCMonth();
+  const offsetHours = month >= 3 && month <= 9 ? 4 : 5; // EDT=4, EST=5
+  thursday.setUTCHours(8 + offsetHours, 30, 0, 0); // 8:30am ET → UTC
   return thursday;
+}
+
+/**
+ * Parse a release date from Vintages page HTML.
+ * Looks for text like "goes live for ordering on June 11, 2026 08:30"
+ * and converts from Eastern time to UTC.
+ */
+function parseReleaseOpensAt(html: string): Date | null {
+  const m = html.match(
+    /(?:goes live for ordering on|available for ordering on|ordering opens on)\s+([A-Z][a-z]+\s+\d+,\s*\d{4}\s+\d+:\d+)/i,
+  );
+  if (!m) return null;
+  const dateStr = m[1].trim();
+  const parts = dateStr.match(/(\w+)\s+(\d+),\s*(\d{4})\s+(\d+):(\d+)/);
+  if (!parts) return null;
+
+  const MONTHS: Record<string, number> = {
+    January: 0, February: 1, March: 2, April: 3, May: 4, June: 5,
+    July: 6, August: 7, September: 8, October: 9, November: 10, December: 11,
+  };
+  const month = MONTHS[parts[1]];
+  if (month === undefined) return null;
+
+  const day = parseInt(parts[2]);
+  const year = parseInt(parts[3]);
+  const hour = parseInt(parts[4]);
+  const minute = parseInt(parts[5]);
+
+  // EDT (UTC-4) April–October, EST (UTC-5) November–March
+  const offsetHours = month >= 3 && month <= 9 ? 4 : 5;
+  return new Date(Date.UTC(year, month, day, hour + offsetHours, minute, 0, 0));
 }
 
 function extractFormFields($: cheerio.CheerioAPI): Record<string, string> {
@@ -202,7 +237,7 @@ function findNextPageLink($: cheerio.CheerioAPI, currentPage: number): string | 
   return found;
 }
 
-async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[]; pages: number; errors: string[] }> {
+async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[]; pages: number; errors: string[]; releaseOpensAt: Date | null }> {
   const url = `${BASE}/Public/OrderProgramProducts.aspx?programId=${info.programId}&lang=en`;
   const wines: ScrapedWine[] = [];
   const errors: string[] = [];
@@ -211,7 +246,13 @@ async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[];
   try {
     html = await fetchHtml(url);
   } catch (err: any) {
-    return { wines, pages: 0, errors: [`Fetch failed: ${err.message}`] };
+    return { wines, pages: 0, errors: [`Fetch failed: ${err.message}`], releaseOpensAt: null };
+  }
+
+  // Try to parse the actual release date from the page before falling back to computed date
+  const releaseOpensAt = parseReleaseOpensAt(html);
+  if (releaseOpensAt) {
+    logger.info({ programId: info.programId, releaseOpensAt }, "Parsed release date from page");
   }
 
   let $ = cheerio.load(html);
@@ -251,7 +292,7 @@ async function scrapeProgram(info: ProgramInfo): Promise<{ wines: ScrapedWine[];
     }
   }
 
-  return { wines, pages: currentPage, errors };
+  return { wines, pages: currentPage, errors, releaseOpensAt };
 }
 
 async function discoverPrograms(): Promise<ProgramInfo[]> {
@@ -487,7 +528,7 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
       await db.delete(releaseCyclesTable).where(eq(releaseCyclesTable.id, existing[0].id));
     }
 
-    const { wines, pages, errors } = await scrapeProgram(info);
+    const { wines, pages, errors, releaseOpensAt: parsedDate } = await scrapeProgram(info);
     logger.info({ programId: info.programId, wines: wines.length, pages }, "Program scraped");
 
     if (wines.length === 0) {
@@ -495,7 +536,8 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
       continue;
     }
 
-    const releaseOpensAt = computeReleaseOpensAt(info.status);
+    // Use date parsed from the page; fall back to computing next Thursday
+    const releaseOpensAt = parsedDate ?? computeReleaseOpensAt(info.status);
 
     const [cycle] = await db
       .insert(releaseCyclesTable)

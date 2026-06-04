@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { eq, and, gte, lt, isNotNull, sql } from "drizzle-orm";
+import { eq, and, gte, lt, isNotNull, inArray, sql } from "drizzle-orm";
 import {
   db,
   alertsTable,
@@ -26,8 +26,8 @@ function tableRow(label: string, value: string | null | undefined, valueColor = 
   if (!value) return "";
   return `
     <tr>
-      <td style="padding:8px 0;color:#F2EBD9;opacity:0.6;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;width:38%;font-family:sans-serif;">${label}</td>
-      <td style="padding:8px 0;color:${valueColor};font-size:14px;font-family:Georgia,serif;">${value}</td>
+      <td style="padding:7px 0;color:#F2EBD9;opacity:0.5;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;width:38%;font-family:sans-serif;">${label}</td>
+      <td style="padding:7px 0;color:${valueColor};font-size:14px;font-family:Georgia,serif;">${value}</td>
     </tr>`;
 }
 
@@ -66,57 +66,10 @@ function formatReleaseDate(date: Date | null): string {
   });
 }
 
-// ─── Announcement Alert ───────────────────────────────────────────────────────
-
+// Program label badge — high contrast: white text on deep charcoal, gold accent border
 function programBadge(label: string | null | undefined): string {
   if (!label) return "";
-  return `<p style="display:inline-block;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#1a040a;background:#B8860B;padding:3px 10px;margin:0 0 20px;">${label}</p>`;
-}
-
-function buildAnnouncementHtml(
-  wine: {
-    wine_name: string;
-    producer: string | null;
-    region: string | null;
-    vintage: string | null;
-    score: unknown;
-    price: unknown;
-    qty_available: number | null;
-    closing_date: string | null;
-    buy_url: string | null;
-    program_label?: string | null;
-  },
-  releaseOpensAt: Date | null,
-  unsubscribeToken?: string | null,
-): string {
-  const buyUrl =
-    wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
-  const releaseDate = formatReleaseDate(releaseOpensAt);
-
-  const inner = `
-    ${programBadge(wine.program_label)}
-    <h1 style="color:#F2EBD9;font-size:22px;line-height:1.35;margin:0 0 8px;font-family:Georgia,serif;">${wine.wine_name}</h1>
-    ${wine.producer ? `<p style="color:#B8860B;font-size:13px;margin:0 0 28px;font-family:sans-serif;">${wine.producer}</p>` : `<div style="margin-bottom:28px;"></div>`}
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:28px;">
-      ${tableRow("Vintage", wine.vintage)}
-      ${tableRow("Region", wine.region)}
-      ${tableRow("Score", wine.score ? `${wine.score} pts` : null, "#B8860B")}
-      ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
-      ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
-      ${tableRow("Closes", wine.closing_date)}
-    </table>
-
-    <div style="border-left:3px solid #B8860B;padding:12px 16px;background:rgba(184,134,11,0.08);margin-bottom:32px;">
-      <p style="font-family:sans-serif;font-size:13px;color:#F2EBD9;margin:0;line-height:1.5;">
-        Ordering opens <strong style="color:#B8860B;">${releaseDate} at 8:30am Eastern</strong> — be ready.
-      </p>
-    </div>
-
-    <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:14px 28px;text-decoration:none;font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">View on LCBO Vintages →</a>
-  `;
-
-  return emailWrapper(inner, unsubscribeToken);
+  return `<p style="display:inline-block;font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#F2EBD9;background:#2a1020;border:1px solid rgba(184,134,11,0.55);padding:4px 10px;margin:0 0 16px;line-height:1.4;">${label}</p>`;
 }
 
 async function ensureUnsubscribeToken(profileId: string): Promise<string> {
@@ -128,124 +81,214 @@ async function ensureUnsubscribeToken(profileId: string): Promise<string> {
   return token;
 }
 
+// ─── Wine entry type used in digest builders ──────────────────────────────────
+
+interface WineEntry {
+  id: number;
+  wine_name: string;
+  producer: string | null;
+  region: string | null;
+  vintage: string | null;
+  score: unknown;
+  price: unknown;
+  qty_available: number | null;
+  closing_date: string | null;
+  buy_url: string | null;
+  program_label: string | null;
+  release_opens_at: Date | null;
+}
+
+// ─── Announcement Digest ──────────────────────────────────────────────────────
+
+function buildAnnouncementDigestHtml(wines: WineEntry[], unsubscribeToken?: string | null): string {
+  const cards = wines.map((wine) => {
+    const buyUrl =
+      wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
+    const releaseDate = formatReleaseDate(wine.release_opens_at ?? null);
+    const opensRow =
+      releaseDate !== "TBA"
+        ? tableRow("Ordering opens", `${releaseDate} at 8:30am ET`, "#B8860B")
+        : "";
+
+    return `
+    <div style="padding:28px 0;border-top:1px solid rgba(242,235,217,0.1);">
+      ${programBadge(wine.program_label)}
+      <h2 style="color:#F2EBD9;font-size:18px;line-height:1.35;margin:0 0 6px;font-family:Georgia,serif;">${wine.wine_name}</h2>
+      ${wine.producer ? `<p style="color:#B8860B;font-size:12px;margin:0 0 20px;font-family:sans-serif;letter-spacing:0.02em;">${wine.producer}</p>` : `<div style="margin-bottom:20px;"></div>`}
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        ${tableRow("Vintage", wine.vintage)}
+        ${tableRow("Region", wine.region)}
+        ${tableRow("Score", wine.score ? `${wine.score} pts` : null, "#B8860B")}
+        ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
+        ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
+        ${tableRow("Closes", wine.closing_date)}
+        ${opensRow}
+      </table>
+      <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:11px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order on LCBO Vintages →</a>
+    </div>`;
+  }).join("");
+
+  const intro =
+    wines.length === 1
+      ? "The following wine from your watchlist was just posted to LCBO Vintages. Quantities are limited — be ready when ordering opens."
+      : `The following ${wines.length} wines from your watchlist were just posted to LCBO Vintages. Quantities are limited — be ready when ordering opens.`;
+
+  const inner = `
+    <h1 style="color:#F2EBD9;font-size:21px;line-height:1.3;margin:0 0 10px;font-family:Georgia,serif;">New watchlist wines announced</h1>
+    <p style="color:#F2EBD9;opacity:0.5;font-size:13px;font-family:sans-serif;line-height:1.65;margin:0 0 4px;">${intro}</p>
+    ${cards}
+  `;
+
+  return emailWrapper(inner, unsubscribeToken);
+}
+
+// ─── Morning Reminder Digest ──────────────────────────────────────────────────
+
+function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | null): string {
+  const cards = wines.map((wine) => {
+    const buyUrl =
+      wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
+
+    return `
+    <div style="padding:28px 0;border-top:1px solid rgba(242,235,217,0.1);">
+      ${programBadge(wine.program_label)}
+      <h2 style="color:#F2EBD9;font-size:18px;line-height:1.35;margin:0 0 6px;font-family:Georgia,serif;">${wine.wine_name}</h2>
+      ${wine.producer ? `<p style="color:#B8860B;font-size:12px;margin:0 0 20px;font-family:sans-serif;letter-spacing:0.02em;">${wine.producer}</p>` : `<div style="margin-bottom:20px;"></div>`}
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        ${tableRow("Region", wine.region)}
+        ${tableRow("Score", wine.score ? `${wine.score} pts` : null, "#B8860B")}
+        ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
+        ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
+      </table>
+      <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:11px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order Now on LCBO Vintages →</a>
+    </div>`;
+  }).join("");
+
+  const heading =
+    wines.length === 1
+      ? "Your watchlist wine opens for ordering today at 8:30am ET"
+      : "Your watchlist wines open for ordering today at 8:30am ET";
+
+  const inner = `
+    <p style="color:#B8860B;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;font-family:sans-serif;margin:0 0 14px;font-weight:600;">Reminder: Ordering Opens Today</p>
+    <h1 style="color:#F2EBD9;font-size:21px;line-height:1.3;margin:0 0 22px;font-family:Georgia,serif;">${heading}</h1>
+    <div style="border-left:3px solid #B8860B;padding:12px 16px;background:rgba(184,134,11,0.08);margin-bottom:8px;">
+      <p style="font-family:sans-serif;font-size:13px;color:#B8860B;font-weight:700;margin:0;">Ordering opens at 8:30am Eastern this morning.</p>
+      <p style="font-family:sans-serif;font-size:12px;color:#F2EBD9;opacity:0.65;margin:4px 0 0;">Quantities are limited — have your LCBO account ready.</p>
+    </div>
+    ${cards}
+  `;
+
+  return emailWrapper(inner, unsubscribeToken);
+}
+
+// ─── Announcement Alert (digest — one email per user, all matching wines) ─────
+
 export async function sendPendingAlerts(): Promise<{ sent: number }> {
-  const pending = await db
-    .select()
+  const rows = await db
+    .select({
+      alert: alertsTable,
+      wine: winesTable,
+      cycle: releaseCyclesTable,
+      profile: profilesTable,
+    })
     .from(alertsTable)
+    .innerJoin(winesTable, eq(alertsTable.wine_id, winesTable.id))
+    .innerJoin(releaseCyclesTable, eq(winesTable.release_cycle_id, releaseCyclesTable.id))
+    .innerJoin(profilesTable, eq(alertsTable.user_id, profilesTable.id))
     .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, false)));
 
-  if (pending.length === 0) return { sent: 0 };
+  if (rows.length === 0) return { sent: 0 };
+
+  // Group by user_id
+  const byUser = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const uid = row.alert.user_id;
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid)!.push(row);
+  }
 
   const resend = getResendClient();
   let sent = 0;
 
-  for (const alert of pending) {
-    const [profile] = await db
-      .select()
-      .from(profilesTable)
-      .where(eq(profilesTable.id, alert.user_id))
-      .limit(1);
-
+  for (const [userId, userRows] of byUser) {
+    const profile = userRows[0].profile;
     if (!profile?.email) continue;
 
-    // Skip users who have unsubscribed — mark both flags so we never retry
+    const alertIds = userRows.map((r) => r.alert.id);
+
+    // Mark unsubscribed users done without sending
     if (profile.alerts_enabled === false) {
       await db
         .update(alertsTable)
         .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
-        .where(eq(alertsTable.id, alert.id));
+        .where(inArray(alertsTable.id, alertIds));
       continue;
     }
 
-    const [wine] = await db
-      .select()
-      .from(winesTable)
-      .where(eq(winesTable.id, alert.wine_id))
-      .limit(1);
+    // Deduplicate by wine_id (DB constraint prevents dups, but belt-and-suspenders)
+    const seenWineIds = new Set<number>();
+    const uniqueRows = userRows.filter((r) => {
+      if (seenWineIds.has(r.wine.id)) return false;
+      seenWineIds.add(r.wine.id);
+      return true;
+    });
 
-    if (!wine) continue;
+    // Sort: newest program (highest programId) first, then by wine insertion order
+    uniqueRows.sort((a, b) => {
+      const pa = parseInt(a.cycle.program_id ?? "0");
+      const pb = parseInt(b.cycle.program_id ?? "0");
+      if (pb !== pa) return pb - pa;
+      return a.wine.id - b.wine.id;
+    });
 
-    const [cycle] = await db
-      .select()
-      .from(releaseCyclesTable)
-      .where(eq(releaseCyclesTable.id, wine.release_cycle_id))
-      .limit(1);
-
-    // Ensure unsubscribe token exists for this user
     let unsubToken = profile.unsubscribe_token;
-    if (!unsubToken) {
-      unsubToken = await ensureUnsubscribeToken(profile.id);
-    }
+    if (!unsubToken) unsubToken = await ensureUnsubscribeToken(profile.id);
+
+    const wines: WineEntry[] = uniqueRows.map((r) => ({
+      id: r.wine.id,
+      wine_name: r.wine.wine_name,
+      producer: r.wine.producer,
+      region: r.wine.region,
+      vintage: r.wine.vintage,
+      score: r.wine.score,
+      price: r.wine.price,
+      qty_available: r.wine.qty_available,
+      closing_date: r.wine.closing_date,
+      buy_url: r.wine.buy_url,
+      program_label: r.cycle?.program_label ?? null,
+      release_opens_at: r.cycle?.release_opens_at ?? null,
+    }));
+
+    const subject =
+      wines.length === 1
+        ? `${wines[0].wine_name} announced — your watchlist match`
+        : `${wines.length} watchlist matches announced on Vintages`;
 
     try {
       await resend.emails.send({
         from: FROM_ALERTS,
         to: profile.email,
-        subject: `${wine.wine_name} just appeared on Vintages`,
-        html: buildAnnouncementHtml(
-          { ...wine, program_label: cycle?.program_label ?? null },
-          cycle?.release_opens_at ?? null,
-          unsubToken,
-        ),
+        subject,
+        html: buildAnnouncementDigestHtml(wines, unsubToken),
       });
 
       await db
         .update(alertsTable)
-        .set({
-          sent: true,
-          sent_at: new Date(),
-          announcement_alert_sent: true,
-        })
-        .where(eq(alertsTable.id, alert.id));
+        .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
+        .where(inArray(alertsTable.id, alertIds));
 
       sent++;
-      logger.info({ alertId: alert.id, email: profile.email }, "Announcement alert sent");
+      logger.info({ userId, wines: wines.length, email: profile.email }, "Announcement digest sent");
     } catch (err) {
-      logger.error({ err, alertId: alert.id }, "Failed to send announcement alert");
+      logger.error({ err, userId }, "Failed to send announcement digest");
     }
   }
 
   return { sent };
 }
 
-// ─── Morning Alert ────────────────────────────────────────────────────────────
-
-function buildMorningHtml(wine: {
-  wine_name: string;
-  producer: string | null;
-  region: string | null;
-  score: unknown;
-  price: unknown;
-  qty_available: number | null;
-  buy_url: string | null;
-  program_label?: string | null;
-}, unsubscribeToken?: string | null): string {
-  const buyUrl =
-    wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
-
-  const inner = `
-    <p style="color:#B8860B;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;font-family:sans-serif;margin:0 0 16px;">90-Minute Reminder</p>
-    ${programBadge(wine.program_label)}
-    <h1 style="color:#F2EBD9;font-size:22px;line-height:1.35;margin:0 0 8px;font-family:Georgia,serif;">${wine.wine_name}</h1>
-    ${wine.producer ? `<p style="color:#B8860B;font-size:13px;margin:0 0 28px;font-family:sans-serif;">${wine.producer}</p>` : `<div style="margin-bottom:28px;"></div>`}
-
-    <div style="border:1px solid rgba(184,134,11,0.4);padding:20px 24px;margin-bottom:32px;background:rgba(184,134,11,0.06);">
-      <p style="font-family:sans-serif;font-size:15px;color:#B8860B;font-weight:700;margin:0 0 4px;">Opens for ordering at 8:30am Eastern this morning.</p>
-      <p style="font-family:sans-serif;font-size:13px;color:#F2EBD9;opacity:0.7;margin:0;">Quantities are limited — have your LCBO account ready.</p>
-    </div>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:32px;">
-      ${tableRow("Region", wine.region)}
-      ${tableRow("Score", wine.score ? `${wine.score} pts` : null, "#B8860B")}
-      ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
-      ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
-    </table>
-
-    <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:14px 28px;text-decoration:none;font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order Now on LCBO Vintages →</a>
-  `;
-
-  return emailWrapper(inner, unsubscribeToken);
-}
+// ─── Morning Reminder (digest — one email per user, all wines opening today) ──
 
 export async function sendMorningAlerts(): Promise<{ sent: number }> {
   const todayUTC = new Date();
@@ -253,7 +296,7 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
   const tomorrowUTC = new Date(todayUTC);
   tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
 
-  const due = await db
+  const rows = await db
     .select({
       alert: alertsTable,
       wine: winesTable,
@@ -273,58 +316,99 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
       ),
     );
 
-  if (due.length === 0) return { sent: 0 };
+  if (rows.length === 0) return { sent: 0 };
+
+  // Group by user_id
+  const byUser = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const uid = row.alert.user_id;
+    if (!byUser.has(uid)) byUser.set(uid, []);
+    byUser.get(uid)!.push(row);
+  }
 
   const resend = getResendClient();
   let sent = 0;
 
-  for (const row of due) {
-    const { alert, wine, profile } = row;
+  for (const [userId, userRows] of byUser) {
+    const profile = userRows[0].profile;
     if (!profile?.email) continue;
-    // Skip unsubscribed users — mark the flag so we never retry
+
+    const alertIds = userRows.map((r) => r.alert.id);
+
+    // Mark unsubscribed users done without sending
     if (profile.alerts_enabled === false) {
       await db
         .update(alertsTable)
         .set({ morning_alert_sent: true, morning_sent_at: new Date() })
-        .where(eq(alertsTable.id, alert.id));
+        .where(inArray(alertsTable.id, alertIds));
       continue;
     }
 
+    // Deduplicate by wine_id
+    const seenWineIds = new Set<number>();
+    const uniqueRows = userRows.filter((r) => {
+      if (seenWineIds.has(r.wine.id)) return false;
+      seenWineIds.add(r.wine.id);
+      return true;
+    });
+
+    // Sort: newest program first, then wine insertion order
+    uniqueRows.sort((a, b) => {
+      const pa = parseInt(a.cycle.program_id ?? "0");
+      const pb = parseInt(b.cycle.program_id ?? "0");
+      if (pb !== pa) return pb - pa;
+      return a.wine.id - b.wine.id;
+    });
+
     let unsubToken = profile.unsubscribe_token;
-    if (!unsubToken) {
-      unsubToken = await ensureUnsubscribeToken(profile.id);
-    }
+    if (!unsubToken) unsubToken = await ensureUnsubscribeToken(profile.id);
+
+    const wines: WineEntry[] = uniqueRows.map((r) => ({
+      id: r.wine.id,
+      wine_name: r.wine.wine_name,
+      producer: r.wine.producer,
+      region: r.wine.region,
+      vintage: r.wine.vintage,
+      score: r.wine.score,
+      price: r.wine.price,
+      qty_available: r.wine.qty_available,
+      closing_date: r.wine.closing_date,
+      buy_url: r.wine.buy_url,
+      program_label: r.cycle?.program_label ?? null,
+      release_opens_at: r.cycle?.release_opens_at ?? null,
+    }));
+
+    const subject =
+      wines.length === 1
+        ? `${wines[0].wine_name} opens for ordering today at 8:30am ET`
+        : `${wines.length} watchlist wines open for ordering today at 8:30am ET`;
 
     try {
       await resend.emails.send({
         from: FROM_ALERTS,
         to: profile.email,
-        subject: `${wine.wine_name} opens for ordering in 90 minutes — act fast`,
-        html: buildMorningHtml(
-          { ...wine, program_label: row.cycle?.program_label ?? null },
-          unsubToken,
-        ),
+        subject,
+        html: buildMorningDigestHtml(wines, unsubToken),
       });
 
       await db
         .update(alertsTable)
         .set({ morning_alert_sent: true, morning_sent_at: new Date() })
-        .where(eq(alertsTable.id, alert.id));
+        .where(inArray(alertsTable.id, alertIds));
 
       sent++;
-      logger.info({ alertId: alert.id, email: profile.email }, "Morning alert sent");
+      logger.info({ userId, wines: wines.length, email: profile.email }, "Morning digest sent");
     } catch (err) {
-      logger.error({ err, alertId: alert.id }, "Failed to send morning alert");
+      logger.error({ err, userId }, "Failed to send morning digest");
     }
   }
 
   return { sent };
 }
 
-// ─── Test Mode Alerts (send queued is_test alerts to admin only) ──────────────
+// ─── Test Mode Alerts (send queued is_test alerts to admin as digest) ─────────
 
 export async function sendTestModeAlerts(): Promise<{ sent: number; adminEmail: string | null }> {
-  // Find admin email
   const [admin] = await db
     .select()
     .from(profilesTable)
@@ -334,43 +418,74 @@ export async function sendTestModeAlerts(): Promise<{ sent: number; adminEmail: 
   if (!admin?.email) return { sent: 0, adminEmail: null };
 
   const pending = await db
-    .select()
+    .select({
+      alert: alertsTable,
+      wine: winesTable,
+      cycle: releaseCyclesTable,
+    })
     .from(alertsTable)
+    .innerJoin(winesTable, eq(alertsTable.wine_id, winesTable.id))
+    .innerJoin(releaseCyclesTable, eq(winesTable.release_cycle_id, releaseCyclesTable.id))
     .where(and(eq(alertsTable.announcement_alert_sent, false), eq(alertsTable.is_test, true)));
 
   if (pending.length === 0) return { sent: 0, adminEmail: admin.email };
 
+  // Deduplicate by wine_id
+  const seenWineIds = new Set<number>();
+  const uniqueRows = pending.filter((r) => {
+    if (seenWineIds.has(r.wine.id)) return false;
+    seenWineIds.add(r.wine.id);
+    return true;
+  });
+
+  uniqueRows.sort((a, b) => {
+    const pa = parseInt(a.cycle.program_id ?? "0");
+    const pb = parseInt(b.cycle.program_id ?? "0");
+    if (pb !== pa) return pb - pa;
+    return a.wine.id - b.wine.id;
+  });
+
+  const wines: WineEntry[] = uniqueRows.map((r) => ({
+    id: r.wine.id,
+    wine_name: r.wine.wine_name,
+    producer: r.wine.producer,
+    region: r.wine.region,
+    vintage: r.wine.vintage,
+    score: r.wine.score,
+    price: r.wine.price,
+    qty_available: r.wine.qty_available,
+    closing_date: r.wine.closing_date,
+    buy_url: r.wine.buy_url,
+    program_label: r.cycle?.program_label ?? null,
+    release_opens_at: r.cycle?.release_opens_at ?? null,
+  }));
+
   const resend = getResendClient();
-  let sent = 0;
+  const subject =
+    wines.length === 1
+      ? `[TEST] ${wines[0].wine_name} announced — your watchlist match`
+      : `[TEST] ${wines.length} watchlist matches announced on Vintages`;
 
-  for (const alert of pending) {
-    const [wine] = await db.select().from(winesTable).where(eq(winesTable.id, alert.wine_id)).limit(1);
-    if (!wine) continue;
-    const [cycle] = await db.select().from(releaseCyclesTable).where(eq(releaseCyclesTable.id, wine.release_cycle_id)).limit(1);
+  try {
+    await resend.emails.send({
+      from: FROM_ALERTS,
+      to: admin.email,
+      subject,
+      html: buildAnnouncementDigestHtml(wines, null),
+    });
 
-    try {
-      await resend.emails.send({
-        from: FROM_ALERTS,
-        to: admin.email,
-        subject: `[TEST] ${wine.wine_name} just appeared on Vintages`,
-        html: buildAnnouncementHtml(
-          { ...wine, program_label: cycle?.program_label ?? null },
-          cycle?.release_opens_at ?? null,
-          null,
-        ),
-      });
-      await db
-        .update(alertsTable)
-        .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
-        .where(eq(alertsTable.id, alert.id));
-      sent++;
-      logger.info({ alertId: alert.id, adminEmail: admin.email }, "Test mode alert sent to admin");
-    } catch (err) {
-      logger.error({ err, alertId: alert.id }, "Failed to send test mode alert");
-    }
+    const alertIds = pending.map((r) => r.alert.id);
+    await db
+      .update(alertsTable)
+      .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
+      .where(inArray(alertsTable.id, alertIds));
+
+    logger.info({ adminEmail: admin.email, wines: wines.length }, "Test mode digest sent to admin");
+    return { sent: 1, adminEmail: admin.email };
+  } catch (err) {
+    logger.error({ err }, "Failed to send test mode digest");
+    return { sent: 0, adminEmail: admin.email };
   }
-
-  return { sent, adminEmail: admin.email };
 }
 
 // ─── Pending alert counts ─────────────────────────────────────────────────────
@@ -402,43 +517,45 @@ export async function getPendingAlertCounts(): Promise<{
   };
 }
 
-// ─── Test alert ───────────────────────────────────────────────────────────────
+// ─── Test alert (sends demo emails to a specific address) ────────────────────
 
 export async function sendTestAlert(toEmail: string): Promise<{ sent: number; responses: unknown[] }> {
   const resend = getResendClient();
-  const demoWine = {
-    wine_name: "Château Margaux 2018",
-    producer: "Château Margaux",
-    region: "Bordeaux, France",
-    vintage: "2018",
-    score: "100",
-    price: "1495.00",
-    qty_available: 24,
-    closing_date: "June 5, 2026",
-    buy_url: "https://www.vintagesshoponline.com",
-    program_label: "Cellar Collection: Monthly Features",
-  };
-  const demoOpensAt = new Date();
-  demoOpensAt.setUTCHours(13, 30, 0, 0);
+  const demoWines: WineEntry[] = [
+    {
+      id: 0,
+      wine_name: "Château Margaux 2018",
+      producer: "Château Margaux",
+      region: "Bordeaux, France",
+      vintage: "2018",
+      score: "100",
+      price: "1495.00",
+      qty_available: 24,
+      closing_date: "June 5, 2026",
+      buy_url: "https://www.vintagesshoponline.com",
+      program_label: "Cellar Collection: Monthly Features",
+      release_opens_at: (() => { const d = new Date(); d.setUTCHours(12, 30, 0, 0); return d; })(),
+    },
+  ];
 
   const responses: unknown[] = [];
 
-  logger.info({ to: toEmail, from: FROM_ALERTS }, "Sending test announcement email");
+  logger.info({ to: toEmail, from: FROM_ALERTS }, "Sending test announcement digest");
   const r1 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `[TEST] ${demoWine.wine_name} just appeared on Vintages`,
-    html: buildAnnouncementHtml(demoWine, demoOpensAt),
+    subject: `[TEST] ${demoWines[0].wine_name} announced — your watchlist match`,
+    html: buildAnnouncementDigestHtml(demoWines),
   });
   logger.info({ resendResponse: r1 }, "Test announcement email Resend response");
   responses.push(r1);
 
-  logger.info({ to: toEmail, from: FROM_ALERTS }, "Sending test morning email");
+  logger.info({ to: toEmail, from: FROM_ALERTS }, "Sending test morning digest");
   const r2 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `[TEST] ${demoWine.wine_name} opens for ordering in 90 minutes — act fast`,
-    html: buildMorningHtml(demoWine),
+    subject: `[TEST] ${demoWines[0].wine_name} opens for ordering today at 8:30am ET`,
+    html: buildMorningDigestHtml(demoWines),
   });
   logger.info({ resendResponse: r2 }, "Test morning email Resend response");
   responses.push(r2);
