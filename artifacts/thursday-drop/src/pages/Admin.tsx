@@ -337,14 +337,21 @@ export default function Admin() {
         </header>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="bg-card border border-border rounded-none h-12 w-full justify-start p-0 mb-8 overflow-x-auto">
-            {["overview", "scraper", "alerts", "users", "watchlists", "newsletter"].map((tab) => (
+          <TabsList className="bg-card border border-border rounded-none h-12 w-full justify-start p-0 mb-8 overflow-x-auto flex-nowrap shrink-0">
+            {[
+              { value: "overview", label: "Overview" },
+              { value: "scraper", label: "Scraper" },
+              { value: "alerts", label: "Alerts" },
+              { value: "users", label: "Users" },
+              { value: "watchlists", label: "Watchlists" },
+              { value: "newsletter", label: "Newsletter" },
+            ].map((tab) => (
               <TabsTrigger
-                key={tab}
-                value={tab}
-                className="rounded-none h-full px-8 capitalize data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                key={tab.value}
+                value={tab.value}
+                className="rounded-none h-full px-5 whitespace-nowrap shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs tracking-widest uppercase"
               >
-                {tab}
+                {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>

@@ -117,7 +117,7 @@ export function Nav() {
                   <MobileNavLink href="/account" onClose={() => setMenuOpen(false)}>Account</MobileNavLink>
                   <button
                     onClick={() => { setMenuOpen(false); setShowSignOutConfirm(true); }}
-                    className={NAV_LINK}
+                    className={`${NAV_LINK} text-left w-full`}
                   >
                     Sign out
                   </button>
