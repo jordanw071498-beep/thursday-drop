@@ -8,6 +8,7 @@
     "seed": "tsx ./src/seed.ts",
     "seed-products": "tsx ./src/seed-products.ts",
     "dry-run-alerts": "tsx ./src/dry-run-alerts.ts",
+    "seed-wine-suggestions": "tsx ./src/seed-wine-suggestions.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

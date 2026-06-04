@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, watchlistItemsTable, watchlistCategoriesTable } from "@workspace/db";
+import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
+import { db, watchlistItemsTable, watchlistCategoriesTable, wineSuggestionsTable } from "@workspace/db";
 import { queueAlertsForNewWatchlistItem } from "../lib/scraper.js";
 import { sendPendingAlerts } from "../lib/email.js";
 import {
@@ -20,6 +20,48 @@ function serializeWatchlistItem(item: typeof watchlistItemsTable.$inferSelect) {
     created_at: item.created_at.toISOString(),
   };
 }
+
+// ─── Wine suggestions autocomplete (no auth required) ────────────────────────
+
+router.get("/watchlist/suggestions", async (req, res): Promise<void> => {
+  const q = (typeof req.query.q === "string" ? req.query.q : "").trim();
+  if (q.length < 2) {
+    res.json([]);
+    return;
+  }
+
+  const typeFilter = typeof req.query.type === "string" ? req.query.type : "all";
+  const rawLimit = parseInt(typeof req.query.limit === "string" ? req.query.limit : "10", 10);
+  const limit = Math.min(Math.max(rawLimit || 10, 1), 20);
+
+  const normalized = q.toLowerCase();
+  const prefixPattern = `${normalized}%`;
+  const anyPattern = `%${normalized}%`;
+
+  const conditions = [ilike(wineSuggestionsTable.normalized_name, anyPattern)];
+  if (typeFilter === "wine" || typeFilter === "producer") {
+    conditions.push(eq(wineSuggestionsTable.type, typeFilter));
+  }
+
+  const results = await db
+    .select({
+      id: wineSuggestionsTable.id,
+      display_name: wineSuggestionsTable.display_name,
+      producer: wineSuggestionsTable.producer,
+      wine_name: wineSuggestionsTable.wine_name,
+      type: wineSuggestionsTable.type,
+      count: wineSuggestionsTable.count,
+    })
+    .from(wineSuggestionsTable)
+    .where(and(...conditions))
+    .orderBy(
+      sql`CASE WHEN normalized_name ILIKE ${prefixPattern} THEN 0 ELSE 1 END`,
+      desc(wineSuggestionsTable.count),
+    )
+    .limit(limit);
+
+  res.json(results);
+});
 
 router.get("/watchlist", async (req, res): Promise<void> => {
   const profile = await getAuthProfile(req);

@@ -210,6 +210,15 @@ export interface ScrapeResult {
   wines_found?: number;
 }
 
+export interface WineSuggestion {
+  id: number;
+  display_name: string;
+  producer?: string | null;
+  wine_name?: string | null;
+  type: string;
+  count: number;
+}
+
 export interface AlertResult {
   success: boolean;
   sent: number;
@@ -228,4 +237,26 @@ min_score?: number;
 max_price?: number;
 sold_out?: boolean;
 };
+
+export type GetWatchlistSuggestionsParams = {
+/**
+ * @minLength 2
+ */
+q: string;
+type?: GetWatchlistSuggestionsType;
+/**
+ * @minimum 1
+ * @maximum 20
+ */
+limit?: number;
+};
+
+export type GetWatchlistSuggestionsType = typeof GetWatchlistSuggestionsType[keyof typeof GetWatchlistSuggestionsType];
+
+
+export const GetWatchlistSuggestionsType = {
+  wine: 'wine',
+  producer: 'producer',
+  all: 'all',
+} as const;
 

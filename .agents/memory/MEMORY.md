@@ -1,0 +1,1 @@
+- [Seed script batch deduplication](seed-batch-dedup.md) — ON CONFLICT DO UPDATE fails if same unique key appears twice in one batch; deduplicate within each batch first.

@@ -1,7 +1,7 @@
 import { useGetWatchlist, useAddToWatchlist, useRemoveFromWatchlist, getGetWatchlistQueryKey } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,137 @@ function MatchBadge({ matchType }: { matchType: string }) {
     <Badge variant="outline" className="rounded-none text-xs uppercase tracking-wider font-medium border-border text-muted-foreground gap-1">
       <Wine className="h-3 w-3" />Exact
     </Badge>
+  );
+}
+
+// ─── Wine autocomplete ────────────────────────────────────────────────────────
+
+type SuggestionItem = {
+  id: number;
+  display_name: string;
+  producer: string | null;
+  wine_name: string | null;
+  type: string;
+  count: number;
+};
+
+function WineAutocomplete({
+  value,
+  onChange,
+  placeholder,
+  suggestionType,
+  required,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  suggestionType: "wine" | "producer";
+  required?: boolean;
+  className?: string;
+}) {
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ q: q.trim(), type: suggestionType, limit: "8" });
+      const res = await fetch(`/api/watchlist/suggestions?${params}`);
+      if (!res.ok) throw new Error("failed");
+      const data: SuggestionItem[] = await res.json();
+      setSuggestions(data);
+      setOpen(data.length > 0);
+    } catch {
+      setSuggestions([]);
+      setOpen(false);
+    }
+  }, [suggestionType]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    onChange(v);
+    setHighlighted(-1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(v), 200);
+  };
+
+  const handleSelect = (s: SuggestionItem) => {
+    onChange(s.display_name);
+    setSuggestions([]);
+    setOpen(false);
+    setHighlighted(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!open || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlighted((h) => Math.min(h + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlighted((h) => Math.max(h - 1, -1));
+    } else if (e.key === "Enter" && highlighted >= 0) {
+      e.preventDefault();
+      handleSelect(suggestions[highlighted]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Input
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        required={required}
+        autoComplete="off"
+        className={className}
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 z-50 bg-card border border-border border-t-0 shadow-lg max-h-56 overflow-y-auto">
+          {suggestions.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              onMouseDown={() => handleSelect(s)}
+              className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 transition-colors ${
+                i === highlighted
+                  ? "bg-primary/10 text-primary"
+                  : "hover:bg-muted text-foreground"
+              }`}
+            >
+              {s.type === "producer"
+                ? <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                : <Wine className="h-3 w-3 shrink-0 text-muted-foreground" />}
+              <span className="truncate">{s.display_name}</span>
+              {s.count > 2 && (
+                <span className="ml-auto text-xs text-muted-foreground font-mono shrink-0">{s.count}×</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -316,7 +447,14 @@ export default function Watchlist() {
             {mode === "exact" && (
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
-                  <Input placeholder="Wine name (e.g., Rousseau Chambertin)" value={wineName} onChange={e => setWineName(e.target.value)} required className="bg-background rounded-none border-border" />
+                  <WineAutocomplete
+                    value={wineName}
+                    onChange={setWineName}
+                    placeholder="Wine name (e.g., Rousseau Chambertin)"
+                    suggestionType="wine"
+                    required
+                    className="bg-background rounded-none border-border"
+                  />
                 </div>
                 <div className="w-full md:w-32">
                   <Input placeholder="Vintage" value={vintage} onChange={e => setVintage(e.target.value)} maxLength={4} className="bg-background rounded-none border-border font-mono" />
@@ -324,10 +462,24 @@ export default function Watchlist() {
               </div>
             )}
             {mode === "wine" && (
-              <Input placeholder="Wine name (e.g., Rousseau Chambertin)" value={wineName} onChange={e => setWineName(e.target.value)} required className="bg-background rounded-none border-border" />
+              <WineAutocomplete
+                value={wineName}
+                onChange={setWineName}
+                placeholder="Wine name (e.g., Rousseau Chambertin)"
+                suggestionType="wine"
+                required
+                className="bg-background rounded-none border-border"
+              />
             )}
             {mode === "producer" && (
-              <Input placeholder="Producer or label (e.g., Armand Rousseau, DRC)" value={producer} onChange={e => setProducer(e.target.value)} required className="bg-background rounded-none border-border" />
+              <WineAutocomplete
+                value={producer}
+                onChange={setProducer}
+                placeholder="Producer or label (e.g., Armand Rousseau, DRC)"
+                suggestionType="producer"
+                required
+                className="bg-background rounded-none border-border"
+              />
             )}
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -243,6 +243,32 @@ export const GetWineStatsResponse = zod.object({
 
 
 /**
+ * @summary Autocomplete suggestions for wine or producer names
+ */
+export const getWatchlistSuggestionsQueryQMin = 2;
+
+export const getWatchlistSuggestionsQueryLimitMax = 20;
+
+
+
+export const GetWatchlistSuggestionsQueryParams = zod.object({
+  "q": zod.coerce.string().min(getWatchlistSuggestionsQueryQMin),
+  "type": zod.enum(['wine', 'producer', 'all']).optional(),
+  "limit": zod.coerce.number().min(1).max(getWatchlistSuggestionsQueryLimitMax).optional()
+})
+
+export const GetWatchlistSuggestionsResponseItem = zod.object({
+  "id": zod.number(),
+  "display_name": zod.string(),
+  "producer": zod.string().nullish(),
+  "wine_name": zod.string().nullish(),
+  "type": zod.string(),
+  "count": zod.number()
+})
+export const GetWatchlistSuggestionsResponse = zod.array(GetWatchlistSuggestionsResponseItem)
+
+
+/**
  * @summary Get current user watchlist
  */
 export const GetWatchlistResponseItem = zod.object({

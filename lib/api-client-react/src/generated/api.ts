@@ -29,6 +29,7 @@ import type {
   CheckoutResult,
   CreateProfileInput,
   EmailSubscribeInput,
+  GetWatchlistSuggestionsParams,
   HealthStatus,
   ListWinesParams,
   Profile,
@@ -40,7 +41,8 @@ import type {
   WatchlistItemInput,
   WeeklyPicksInput,
   Wine,
-  WineStats
+  WineStats,
+  WineSuggestion
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1026,6 +1028,90 @@ export function useGetWineStats<TData = Awaited<ReturnType<typeof getWineStats>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetWineStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetWatchlistSuggestionsUrl = (params: GetWatchlistSuggestionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/watchlist/suggestions?${stringifiedParams}` : `/api/watchlist/suggestions`
+}
+
+/**
+ * @summary Autocomplete suggestions for wine or producer names
+ */
+export const getWatchlistSuggestions = async (params: GetWatchlistSuggestionsParams, options?: RequestInit): Promise<WineSuggestion[]> => {
+
+  return customFetch<WineSuggestion[]>(getGetWatchlistSuggestionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWatchlistSuggestionsQueryKey = (params?: GetWatchlistSuggestionsParams,) => {
+    return [
+    `/api/watchlist/suggestions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWatchlistSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof getWatchlistSuggestions>>, TError = ErrorType<unknown>>(params: GetWatchlistSuggestionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchlistSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWatchlistSuggestionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchlistSuggestions>>> = ({ signal }) => getWatchlistSuggestions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWatchlistSuggestions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWatchlistSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getWatchlistSuggestions>>>
+export type GetWatchlistSuggestionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Autocomplete suggestions for wine or producer names
+ */
+
+export function useGetWatchlistSuggestions<TData = Awaited<ReturnType<typeof getWatchlistSuggestions>>, TError = ErrorType<unknown>>(
+ params: GetWatchlistSuggestionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchlistSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWatchlistSuggestionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
