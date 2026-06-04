@@ -7,10 +7,12 @@
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
     "seed-products": "tsx ./src/seed-products.ts",
+    "dry-run-alerts": "tsx ./src/dry-run-alerts.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
+    "drizzle-orm": "catalog:",
     "stripe": "^22.1.1"
   },
   "devDependencies": {
