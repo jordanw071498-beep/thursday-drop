@@ -29,7 +29,7 @@ router.get("/releases/active", async (_req, res): Promise<void> => {
   const allCycles = await db
     .select()
     .from(releaseCyclesTable)
-    .orderBy(desc(sql`program_id::integer`));
+    .orderBy(asc(releaseCyclesTable.display_order), asc(sql`program_id::integer`));
 
   const activeCycles = allCycles.filter((cycle) => {
     if (!cycle.closing_date) return true;

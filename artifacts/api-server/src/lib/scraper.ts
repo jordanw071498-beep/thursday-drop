@@ -509,15 +509,22 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
 
     if (existing.length > 0) {
       if (!options.force) {
-        // Even when skipping a full re-scrape, update status if it changed
-        // (e.g. preview → available after LCBO opens ordering)
-        if (existing[0].status !== info.status) {
-          const releaseOpensAt = computeReleaseOpensAt(info.status);
+        // Always refresh display_order and status for existing programs so the
+        // page order stays in sync with the live Vintages index on every scrape.
+        const statusChanged = existing[0].status !== info.status;
+        const orderChanged = existing[0].display_order !== info.displayOrder;
+        if (statusChanged || orderChanged) {
+          const releaseOpensAt = statusChanged ? computeReleaseOpensAt(info.status) : undefined;
           await db
             .update(releaseCyclesTable)
-            .set({ status: info.status, release_opens_at: releaseOpensAt })
+            .set({
+              status: info.status,
+              display_order: info.displayOrder,
+              ...(releaseOpensAt ? { release_opens_at: releaseOpensAt } : {}),
+            })
             .where(eq(releaseCyclesTable.id, existing[0].id));
-          logger.info({ programId: info.programId, oldStatus: existing[0].status, newStatus: info.status }, "Program status updated");
+          if (statusChanged) logger.info({ programId: info.programId, oldStatus: existing[0].status, newStatus: info.status }, "Program status updated");
+          if (orderChanged) logger.info({ programId: info.programId, oldOrder: existing[0].display_order, newOrder: info.displayOrder }, "Program display_order updated");
         }
         logger.info({ programId: info.programId }, "Already scraped, skipping");
         summaries.push({ programId: info.programId, label: info.label, pages: 0, wines: 0, skipped: true, errors: [], sample: [] });
