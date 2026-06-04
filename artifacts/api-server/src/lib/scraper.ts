@@ -513,18 +513,21 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
         // page order stays in sync with the live Vintages index on every scrape.
         const statusChanged = existing[0].status !== info.status;
         const orderChanged = existing[0].display_order !== info.displayOrder;
-        if (statusChanged || orderChanged) {
+        const labelChanged = existing[0].program_label !== info.label;
+        if (statusChanged || orderChanged || labelChanged) {
           const releaseOpensAt = statusChanged ? computeReleaseOpensAt(info.status) : undefined;
           await db
             .update(releaseCyclesTable)
             .set({
               status: info.status,
               display_order: info.displayOrder,
+              program_label: info.label,
               ...(releaseOpensAt ? { release_opens_at: releaseOpensAt } : {}),
             })
             .where(eq(releaseCyclesTable.id, existing[0].id));
           if (statusChanged) logger.info({ programId: info.programId, oldStatus: existing[0].status, newStatus: info.status }, "Program status updated");
           if (orderChanged) logger.info({ programId: info.programId, oldOrder: existing[0].display_order, newOrder: info.displayOrder }, "Program display_order updated");
+          if (labelChanged) logger.info({ programId: info.programId, oldLabel: existing[0].program_label, newLabel: info.label }, "Program label updated");
         }
         logger.info({ programId: info.programId }, "Already scraped, skipping");
         summaries.push({ programId: info.programId, label: info.label, pages: 0, wines: 0, skipped: true, errors: [], sample: [] });
