@@ -41,7 +41,7 @@ router.post("/contact", async (req, res): Promise<void> => {
   try {
     await resend.emails.send({
       from: "Thursday Drop <hello@thursdaydrop.ca>",
-      to: "jdw98@live.com",
+      to: "thursdaydrop.ca@gmail.com",
       replyTo: email,
       subject: `Contact form: ${name}`,
       html: `

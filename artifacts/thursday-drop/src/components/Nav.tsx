@@ -107,14 +107,17 @@ export function Nav() {
         {/* Mobile dropdown */}
         {menuOpen && (
           <div className="md:hidden border-t border-border bg-background">
-            <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col gap-5">
+            <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col">
               <MobileNavLink href="/release" onClose={() => setMenuOpen(false)}>Release</MobileNavLink>
+              <div className="w-full h-px bg-border/40 my-4" />
               <MobileNavLink href="/history" onClose={() => setMenuOpen(false)}>History</MobileNavLink>
-              <div className="w-full h-px bg-border/50" />
+              <div className="w-full h-px bg-border/40 my-4" />
               {profile ? (
                 <>
                   <MobileNavLink href="/watchlist" onClose={() => setMenuOpen(false)}>Watchlist</MobileNavLink>
+                  <div className="w-full h-px bg-border/40 my-4" />
                   <MobileNavLink href="/account" onClose={() => setMenuOpen(false)}>Account</MobileNavLink>
+                  <div className="w-full h-px bg-border/40 my-4" />
                   <button
                     onClick={() => { setMenuOpen(false); setShowSignOutConfirm(true); }}
                     className={`${NAV_LINK} text-left w-full`}
@@ -125,6 +128,7 @@ export function Nav() {
               ) : (
                 <>
                   <MobileNavLink href="/login" onClose={() => setMenuOpen(false)}>Login</MobileNavLink>
+                  <div className="w-full h-px bg-border/40 my-4" />
                   <MobileNavLink href="/signup" onClose={() => setMenuOpen(false)}>Sign up</MobileNavLink>
                 </>
               )}

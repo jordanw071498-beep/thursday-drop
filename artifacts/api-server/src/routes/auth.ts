@@ -1,8 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, and, gt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { Resend } from "resend";
 import { db, profilesTable, passwordResetTokensTable } from "@workspace/db";
 import { getAuthProfile, serializeProfile } from "../lib/auth.js";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const router: IRouter = Router();
 
@@ -63,6 +66,26 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       alerts_enabled: true,
     })
     .returning();
+
+  // Fire-and-forget signup notification — do not block the response
+  const signupTime = new Date().toLocaleString("en-CA", {
+    timeZone: "America/Toronto",
+    dateStyle: "long",
+    timeStyle: "short",
+  });
+  resend.emails.send({
+    from: "Thursday Drop <alerts@thursdaydrop.ca>",
+    to: "thursdaydrop.ca@gmail.com",
+    subject: `New signup: ${normalizedEmail}`,
+    html: `
+      <p><strong>New Thursday Drop account created</strong></p>
+      <p><strong>Email:</strong> ${normalizedEmail}</p>
+      <p><strong>Plan:</strong> Free</p>
+      <p><strong>Signed up:</strong> ${signupTime} ET</p>
+    `,
+  }).catch((err: unknown) => {
+    req.log.error({ err }, "Signup notification email failed");
+  });
 
   res.status(201).json({ token: session_token, profile: serializeProfile(profile) });
 });

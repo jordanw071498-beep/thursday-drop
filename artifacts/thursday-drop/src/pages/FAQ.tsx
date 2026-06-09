@@ -33,7 +33,7 @@ const FAQS = [
   },
   {
     q: "How do I suggest a feature or report a problem?",
-    a: "Use the contact form on our Contact page or email hello@thursdaydrop.ca directly. We read every message.",
+    a: "Use the contact form on our Contact page or email thursdaydrop.ca@gmail.com directly. We read every message.",
   },
 ];
 

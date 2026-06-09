@@ -20,7 +20,7 @@ export default function Terms() {
         </Section>
 
         <Section n="4" title="Subscriptions and Billing">
-          Pro subscriptions are billed monthly at $4.99 CAD. Payments are processed securely by Stripe. You may cancel your subscription at any time from your Account page. Upon cancellation you retain Pro access until the end of your current billing period. Refunds are handled on a case by case basis. If you believe you are entitled to a refund please contact hello@thursdaydrop.ca. Thursday Drop reserves the right to change subscription pricing. Active subscribers will be notified of any pricing changes by email with reasonable notice.
+          Pro subscriptions are billed monthly at $4.99 CAD. Payments are processed securely by Stripe. You may cancel your subscription at any time from your Account page. Upon cancellation you retain Pro access until the end of your current billing period. Refunds are handled on a case by case basis. If you believe you are entitled to a refund please contact thursdaydrop.ca@gmail.com. Thursday Drop reserves the right to change subscription pricing. Active subscribers will be notified of any pricing changes by email with reasonable notice.
         </Section>
 
         <Section n="5" title="Accounts">
@@ -45,8 +45,8 @@ export default function Terms() {
 
         <Section n="10" title="Contact">
           Questions about these terms? Email{" "}
-          <a href="mailto:hello@thursdaydrop.ca" className="text-primary hover:underline">
-            hello@thursdaydrop.ca
+          <a href="mailto:thursdaydrop.ca@gmail.com" className="text-primary hover:underline">
+            thursdaydrop.ca@gmail.com
           </a>
         </Section>
       </div>

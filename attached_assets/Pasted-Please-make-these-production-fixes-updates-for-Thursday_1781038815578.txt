@@ -1,0 +1,55 @@
+Please make these production fixes/updates for Thursday Drop:
+
+1. Mobile release page layout issue
+   On iPhone, the release category filters/buttons on the Current Release page are overflowing off the right side of the screen. Specifically:
+
+* Monthly Cellar Features
+* Special Offers
+* Bordeaux Futures
+
+Please make this section fully responsive on mobile so all options fit cleanly within the screen. Use wrapping, horizontal scroll, or a mobile-friendly stacked layout if needed.
+
+2. Release category order
+   Please always order the release category options from left to right as:
+3. Special Offers
+4. Monthly Cellar Features
+5. Bordeaux Futures
+
+Special Offers should always appear first.
+
+3. Mobile menu dropdown styling
+   When I click the top-right menu/options button, the dropdown currently shows items like:
+
+* Release
+* History
+* Watchlist
+* etc.
+
+Please add divider lines between each menu item so the dropdown looks cleaner, easier to read, and more polished.
+
+4. New signup notification emails
+   Please add functionality so that every time someone creates a Free or Pro account, an email notification is sent to:
+
+[thursdaydrop.ca@gmail.com](mailto:thursdaydrop.ca@gmail.com)
+
+The email should include:
+
+* user email
+* account type: Free or Pro
+* signup timestamp
+* whether they are Pro/free at signup
+
+5. Contact email destination
+   Please make sure all contact form submissions and any site contact links/emails go to:
+
+[thursdaydrop.ca@gmail.com](mailto:thursdaydrop.ca@gmail.com)
+
+I am okay with this email being public on the website.
+
+Please replace references to [hello@thursdaydrop.ca](mailto:hello@thursdaydrop.ca) for contact/support purposes because I had trouble receiving those emails.
+
+Important:
+
+* Keep alerts/sending emails from [alerts@thursdaydrop.ca](mailto:alerts@thursdaydrop.ca) if that is already working.
+* This change is only for receiving contact messages and internal signup notifications.
+* Push changes to GitHub/Vercel after completion.

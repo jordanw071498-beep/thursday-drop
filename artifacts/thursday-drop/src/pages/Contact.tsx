@@ -111,10 +111,10 @@ export default function Contact() {
             <p className="text-sm text-muted-foreground">
               Or email us directly at{" "}
               <a
-                href="mailto:hello@thursdaydrop.ca"
+                href="mailto:thursdaydrop.ca@gmail.com"
                 className="text-primary hover:underline"
               >
-                hello@thursdaydrop.ca
+                thursdaydrop.ca@gmail.com
               </a>
             </p>
             <p className="text-xs text-muted-foreground/60">

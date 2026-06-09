@@ -304,10 +304,10 @@ export default function Account() {
               Contact Us
             </a>
             <a
-              href="mailto:hello@thursdaydrop.ca"
+              href="mailto:thursdaydrop.ca@gmail.com"
               className="flex-1 text-center text-xs font-medium tracking-widest uppercase border border-border px-5 py-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
             >
-              hello@thursdaydrop.ca
+              thursdaydrop.ca@gmail.com
             </a>
           </div>
         </div>

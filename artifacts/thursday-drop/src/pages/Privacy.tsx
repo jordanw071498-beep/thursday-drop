@@ -93,8 +93,8 @@ export default function Privacy() {
           </ul>
           <p className="mt-3">
             To exercise any of these rights, email{" "}
-            <a href="mailto:hello@thursdaydrop.ca" className="text-primary hover:underline">
-              hello@thursdaydrop.ca
+            <a href="mailto:thursdaydrop.ca@gmail.com" className="text-primary hover:underline">
+              thursdaydrop.ca@gmail.com
             </a>
           </p>
         </Section>
@@ -113,8 +113,8 @@ export default function Privacy() {
 
         <Section n="11" title="Contact">
           Privacy questions or requests? Email{" "}
-          <a href="mailto:hello@thursdaydrop.ca" className="text-primary hover:underline">
-            hello@thursdaydrop.ca
+          <a href="mailto:thursdaydrop.ca@gmail.com" className="text-primary hover:underline">
+            thursdaydrop.ca@gmail.com
           </a>{" "}
           — we do our best to respond as soon as possible, typically within a few days.
         </Section>

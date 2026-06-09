@@ -48,14 +48,14 @@ interface ActiveReleasesResponse {
 
 const TABS = [
   {
-    id: "monthly_collection",
-    label: "Monthly Cellar Features",
-    types: new Set(["monthly_collection"]),
-  },
-  {
     id: "special_offers",
     label: "Special Offers",
     types: new Set(["special_offers"]),
+  },
+  {
+    id: "monthly_collection",
+    label: "Monthly Cellar Features",
+    types: new Set(["monthly_collection"]),
   },
   {
     id: "bordeaux_futures",
@@ -242,14 +242,14 @@ export default function Release() {
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSearch(""); }}>
-            <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent p-0 mb-8 h-auto gap-0">
+            <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent p-0 mb-8 h-auto gap-0 overflow-x-auto">
               {TABS.map((tab) => {
                 const count = (groupedByTab[tab.id] ?? []).reduce((s, p) => s + p.wines.length, 0);
                 return (
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent bg-transparent px-6 py-4 text-sm tracking-widest uppercase font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="shrink-0 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent bg-transparent px-6 py-4 text-sm tracking-widest uppercase font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {tab.label}
                     {count > 0 && (
