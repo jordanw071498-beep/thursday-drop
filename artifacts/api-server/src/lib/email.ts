@@ -584,7 +584,7 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   const r1 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `[TEST] ${announcementWine.wine_name} announced — your watchlist match`,
+    subject: `${announcementWine.wine_name} announced — your watchlist match`,
     html: buildAnnouncementDigestHtml([announcementWine]),
   });
   logger.info({ resendResponse: r1 }, "Test announcement email Resend response");
@@ -594,7 +594,7 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   const r2 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `[TEST] ${morningWine.wine_name} opens for ordering today at 8:30am ET`,
+    subject: `${morningWine.wine_name} opens for ordering today at 8:30am ET`,
     html: buildMorningDigestHtml([morningWine]),
   });
   logger.info({ resendResponse: r2 }, "Test morning email Resend response");
