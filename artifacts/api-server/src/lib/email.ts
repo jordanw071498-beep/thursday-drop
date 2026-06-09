@@ -26,8 +26,8 @@ function tableRow(label: string, value: string | null | undefined, valueColor = 
   if (!value) return "";
   return `
     <tr>
-      <td style="padding:7px 0;color:#F2EBD9;opacity:0.5;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;width:38%;font-family:sans-serif;">${label}</td>
-      <td style="padding:7px 0;color:${valueColor};font-size:14px;font-family:Georgia,serif;">${value}</td>
+      <td style="padding:8px 0;border-bottom:1px solid rgba(184,134,11,0.18);color:#F2EBD9;opacity:0.5;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;width:38%;font-family:sans-serif;">${label}</td>
+      <td style="padding:8px 0;border-bottom:1px solid rgba(184,134,11,0.18);color:${valueColor};font-size:14px;font-family:Georgia,serif;">${value}</td>
     </tr>`;
 }
 
@@ -49,6 +49,9 @@ function emailWrapper(inner: string, unsubscribeToken?: string | null): string {
       You're receiving this because you added this wine to your Thursday Drop watchlist.<br>
       ${footerLinks}
     </p>
+    <p style="color:#F2EBD9;opacity:0.2;font-size:10px;font-family:sans-serif;line-height:1.5;margin:12px 0 0;">
+      Thursday Drop is an independent service and is not affiliated with the LCBO or Vintages.
+    </p>
   </div>
 </div>
 </body></html>`;
@@ -60,6 +63,17 @@ function formatReleaseDate(date: Date | null): string {
   return d.toLocaleDateString("en-CA", {
     timeZone: "America/Toronto",
     weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+// "June 12, 2026" — used in STATUS: Preview row
+function formatOpensDate(date: Date | null): string | null {
+  if (!date) return null;
+  return new Date(date.getTime()).toLocaleDateString("en-CA", {
+    timeZone: "America/Toronto",
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -104,11 +118,19 @@ function buildAnnouncementDigestHtml(wines: WineEntry[], unsubscribeToken?: stri
   const cards = wines.map((wine) => {
     const buyUrl =
       wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
-    const releaseDate = formatReleaseDate(wine.release_opens_at ?? null);
-    const opensRow =
-      releaseDate !== "TBA"
-        ? tableRow("Ordering opens", `${releaseDate} at 8:30am ET`, "#B8860B")
-        : "";
+
+    // Preview wines: show STATUS row. Available wines: show CLOSES row.
+    const closesOrStatus = wine.release_opens_at
+      ? (() => {
+          const d = formatOpensDate(wine.release_opens_at);
+          const text = d
+            ? `Preview — ordering opens ${d} at 8:30am ET`
+            : "Preview — ordering opens next Thursday at 8:30am ET";
+          return tableRow("Status", text, "#B8860B");
+        })()
+      : tableRow("Closes", wine.closing_date);
+
+    const scoreDisplay = wine.score != null ? `${Math.round(Number(wine.score))} pts` : null;
 
     return `
     <div style="padding:28px 0;border-top:1px solid rgba(242,235,217,0.1);">
@@ -118,11 +140,10 @@ function buildAnnouncementDigestHtml(wines: WineEntry[], unsubscribeToken?: stri
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         ${tableRow("Vintage", wine.vintage)}
         ${tableRow("Region", wine.region)}
-        ${tableRow("Score", wine.score ? `${wine.score} pts` : null, "#B8860B")}
+        ${tableRow("Score", scoreDisplay, "#B8860B")}
         ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
         ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
-        ${tableRow("Closes", wine.closing_date)}
-        ${opensRow}
+        ${closesOrStatus}
       </table>
       <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:11px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order on LCBO Vintages →</a>
     </div>`;
@@ -148,6 +169,7 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
   const cards = wines.map((wine) => {
     const buyUrl =
       wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
+    const scoreDisplay = wine.score != null ? `${Math.round(Number(wine.score))} pts` : null;
 
     return `
     <div style="padding:28px 0;border-top:1px solid rgba(242,235,217,0.1);">
@@ -155,10 +177,12 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
       <h2 style="color:#F2EBD9;font-size:18px;line-height:1.35;margin:0 0 6px;font-family:Georgia,serif;">${wine.wine_name}</h2>
       ${wine.producer ? `<p style="color:#B8860B;font-size:12px;margin:0 0 20px;font-family:sans-serif;letter-spacing:0.02em;">${wine.producer}</p>` : `<div style="margin-bottom:20px;"></div>`}
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        ${tableRow("Vintage", wine.vintage)}
         ${tableRow("Region", wine.region)}
-        ${tableRow("Score", wine.score ? `${wine.score} pts` : null, "#B8860B")}
+        ${tableRow("Score", scoreDisplay, "#B8860B")}
         ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
         ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
+        ${tableRow("Closes", wine.closing_date)}
       </table>
       <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:11px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order Now on LCBO Vintages →</a>
     </div>`;
@@ -521,22 +545,38 @@ export async function getPendingAlertCounts(): Promise<{
 
 export async function sendTestAlert(toEmail: string): Promise<{ sent: number; responses: unknown[] }> {
   const resend = getResendClient();
-  const demoWines: WineEntry[] = [
-    {
-      id: 0,
-      wine_name: "Château Margaux 2018",
-      producer: "Château Margaux",
-      region: "Bordeaux, France",
-      vintage: "2018",
-      score: "100",
-      price: "1495.00",
-      qty_available: 24,
-      closing_date: "June 5, 2026",
-      buy_url: "https://www.vintagesshoponline.com",
-      program_label: "Cellar Collection: Monthly Features",
-      release_opens_at: (() => { const d = new Date(); d.setUTCHours(12, 30, 0, 0); return d; })(),
-    },
-  ];
+
+  // Announcement demo: preview wine (release_opens_at in the future → STATUS: Preview row)
+  const announcementWine: WineEntry = {
+    id: 0,
+    wine_name: "Château Lafite Rothschild Pauillac 1995",
+    producer: "Château Lafite Rothschild",
+    region: "Bordeaux",
+    vintage: "1995",
+    score: "98",
+    price: "2475.00",
+    qty_available: null,
+    closing_date: null,
+    buy_url: "https://www.vintagesshoponline.com",
+    program_label: "Lafite / William Fèvre (May26) Post Event Offer",
+    release_opens_at: new Date("2026-06-12T12:30:00Z"), // next Thursday 8:30am ET
+  };
+
+  // Morning reminder demo: wine available today (no release_opens_at → CLOSES row)
+  const morningWine: WineEntry = {
+    id: 0,
+    wine_name: "Château Lafite Rothschild Pauillac 1995",
+    producer: "Château Lafite Rothschild",
+    region: "Bordeaux",
+    vintage: "1995",
+    score: "98",
+    price: "2475.00",
+    qty_available: null,
+    closing_date: "July 10, 2026",
+    buy_url: "https://www.vintagesshoponline.com",
+    program_label: "Lafite / William Fèvre (May26) Post Event Offer",
+    release_opens_at: null,
+  };
 
   const responses: unknown[] = [];
 
@@ -544,8 +584,8 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   const r1 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `[TEST] ${demoWines[0].wine_name} announced — your watchlist match`,
-    html: buildAnnouncementDigestHtml(demoWines),
+    subject: `[TEST] ${announcementWine.wine_name} announced — your watchlist match`,
+    html: buildAnnouncementDigestHtml([announcementWine]),
   });
   logger.info({ resendResponse: r1 }, "Test announcement email Resend response");
   responses.push(r1);
@@ -554,8 +594,8 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   const r2 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `[TEST] ${demoWines[0].wine_name} opens for ordering today at 8:30am ET`,
-    html: buildMorningDigestHtml(demoWines),
+    subject: `[TEST] ${morningWine.wine_name} opens for ordering today at 8:30am ET`,
+    html: buildMorningDigestHtml([morningWine]),
   });
   logger.info({ resendResponse: r2 }, "Test morning email Resend response");
   responses.push(r2);
