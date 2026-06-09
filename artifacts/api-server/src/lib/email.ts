@@ -114,49 +114,84 @@ interface WineEntry {
 
 // ─── Announcement Digest ──────────────────────────────────────────────────────
 
+function formatPriceDisplay(price: unknown): string | null {
+  if (price == null) return null;
+  const n = parseFloat(String(price));
+  if (isNaN(n)) return null;
+  return `$${n.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function buildAnnouncementDigestHtml(wines: WineEntry[], unsubscribeToken?: string | null): string {
   const cards = wines.map((wine) => {
     const buyUrl =
       wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
 
-    // Preview wines: show STATUS row. Available wines: show CLOSES row.
-    const closesOrStatus = wine.release_opens_at
-      ? (() => {
-          const d = formatOpensDate(wine.release_opens_at);
-          const text = d
-            ? `Preview — ordering opens ${d} at 8:30am ET`
-            : "Preview — ordering opens next Thursday at 8:30am ET";
-          return tableRow("Status", text, "#B8860B");
-        })()
-      : tableRow("Closes", wine.closing_date);
+    const score = wine.score != null ? Math.round(Number(wine.score)) : null;
+    const priceStr = formatPriceDisplay(wine.price);
 
-    const scoreDisplay = wine.score != null ? `${Math.round(Number(wine.score))} pts` : null;
+    // Ordering date block — gold + prominent for preview, muted for available
+    let dateBlock = "";
+    if (wine.release_opens_at) {
+      const d = formatOpensDate(wine.release_opens_at);
+      const dateLabel = d ?? "Next Thursday";
+      dateBlock = `
+        <div style="background:rgba(184,134,11,0.12);border:1px solid rgba(184,134,11,0.55);padding:14px 16px;margin:16px 0;">
+          <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#B8860B;margin-bottom:6px;">Ordering Opens</div>
+          <div style="font-family:Georgia,serif;font-size:17px;color:#F2EBD9;line-height:1.3;">${dateLabel} <span style="color:#B8860B;white-space:nowrap;">at 8:30am ET</span></div>
+        </div>`;
+    } else if (wine.closing_date) {
+      dateBlock = `
+        <div style="background:rgba(242,235,217,0.04);border:1px solid rgba(242,235,217,0.14);padding:12px 16px;margin:16px 0;">
+          <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#F2EBD9;opacity:0.38;margin-bottom:5px;">Ordering Closes</div>
+          <div style="font-family:Georgia,serif;font-size:15px;color:#F2EBD9;opacity:0.7;line-height:1.3;">${wine.closing_date}</div>
+        </div>`;
+    }
+
+    // Secondary details shown below the CTA (below the fold on mobile)
+    const secondaryRows = [
+      tableRow("Vintage", wine.vintage),
+      tableRow("Region", wine.region),
+      wine.qty_available ? tableRow("Qty available", `${wine.qty_available} bottles`) : "",
+    ].filter(Boolean).join("");
 
     return `
-    <div style="padding:28px 0;border-top:1px solid rgba(242,235,217,0.1);">
+    <div style="padding:20px 0 0;border-top:1px solid rgba(242,235,217,0.1);">
       ${programBadge(wine.program_label)}
-      <h2 style="color:#F2EBD9;font-size:18px;line-height:1.35;margin:0 0 6px;font-family:Georgia,serif;">${wine.wine_name}</h2>
-      ${wine.producer ? `<p style="color:#B8860B;font-size:12px;margin:0 0 20px;font-family:sans-serif;letter-spacing:0.02em;">${wine.producer}</p>` : `<div style="margin-bottom:20px;"></div>`}
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-        ${tableRow("Vintage", wine.vintage)}
-        ${tableRow("Region", wine.region)}
-        ${tableRow("Score", scoreDisplay, "#B8860B")}
-        ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
-        ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
-        ${closesOrStatus}
+      <h2 style="color:#F2EBD9;font-size:21px;line-height:1.3;margin:0 0 4px;font-family:Georgia,serif;">${wine.wine_name}</h2>
+      ${wine.producer
+        ? `<p style="color:#B8860B;font-size:12px;margin:0 0 16px;font-family:sans-serif;letter-spacing:0.03em;">${wine.producer}</p>`
+        : `<div style="margin-bottom:16px;"></div>`}
+
+      <table style="width:100%;border-collapse:collapse;border-bottom:1px solid rgba(184,134,11,0.18);padding-bottom:2px;margin-bottom:0;">
+        <tr>
+          <td style="width:50%;vertical-align:top;padding:0 10px 16px 0;border-right:1px solid rgba(184,134,11,0.2);">
+            <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#F2EBD9;opacity:0.4;margin-bottom:5px;">Score</div>
+            <div style="font-family:Georgia,serif;line-height:1;color:#B8860B;">
+              <span style="font-size:38px;">${score ?? "—"}</span><span style="font-size:15px;opacity:0.75;margin-left:3px;">pts</span>
+            </div>
+          </td>
+          <td style="width:50%;vertical-align:top;padding:0 0 16px 12px;">
+            <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#F2EBD9;opacity:0.4;margin-bottom:5px;">Price</div>
+            <div style="font-family:Georgia,serif;font-size:38px;line-height:1;color:#F2EBD9;">${priceStr ?? "—"}</div>
+          </td>
+        </tr>
       </table>
-      <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:11px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order on LCBO Vintages →</a>
+
+      ${dateBlock}
+
+      <a href="${buyUrl}" style="display:block;background:#B8860B;color:#1a040a;padding:14px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;text-align:center;margin-bottom:24px;">Order on LCBO Vintages →</a>
+
+      ${secondaryRows
+        ? `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">${secondaryRows}</table>`
+        : ""}
     </div>`;
   }).join("");
 
-  const intro =
-    wines.length === 1
-      ? "The following wine from your watchlist was just posted to LCBO Vintages. Quantities are limited — be ready when ordering opens."
-      : `The following ${wines.length} wines from your watchlist were just posted to LCBO Vintages. Quantities are limited — be ready when ordering opens.`;
+  const heading =
+    wines.length === 1 ? "New watchlist wine announced" : `${wines.length} new watchlist wines announced`;
 
   const inner = `
-    <h1 style="color:#F2EBD9;font-size:21px;line-height:1.3;margin:0 0 10px;font-family:Georgia,serif;">New watchlist wines announced</h1>
-    <p style="color:#F2EBD9;opacity:0.5;font-size:13px;font-family:sans-serif;line-height:1.65;margin:0 0 4px;">${intro}</p>
+    <h1 style="color:#F2EBD9;font-size:20px;line-height:1.3;margin:0 0 18px;font-family:Georgia,serif;">${heading}</h1>
     ${cards}
   `;
 
