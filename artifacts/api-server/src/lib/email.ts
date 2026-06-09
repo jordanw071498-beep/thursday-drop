@@ -594,7 +594,7 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
     closing_date: null,
     buy_url: "https://www.vintagesshoponline.com",
     program_label: "Lafite / William Fèvre (May26) Post Event Offer",
-    release_opens_at: new Date("2026-06-12T12:30:00Z"), // next Thursday 8:30am ET
+    release_opens_at: new Date("2026-06-11T12:30:00Z"), // next Thursday 8:30am ET
   };
 
   // Morning reminder demo: wine available today (no release_opens_at → CLOSES row)
