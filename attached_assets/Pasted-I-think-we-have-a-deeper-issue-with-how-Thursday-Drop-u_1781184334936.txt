@@ -1,0 +1,73 @@
+I think we have a deeper issue with how Thursday Drop understands the LCBO Vintages release cycle.
+
+Two separate problems:
+
+1. Special Offers ordering is wrong again
+   The order of wines in Thursday Drop should exactly match the order shown on the LCBO Vintages website.
+
+I do NOT want:
+
+* alphabetical sorting
+* program_id sorting
+* database insertion sorting
+* any custom ranking
+
+I want the exact order Vintages presents to users from top to bottom.
+
+Right now the ordering appears wrong again. Please investigate and make sure the order displayed in Thursday Drop is a direct reflection of the order shown on Vintages.
+
+2. The release lifecycle logic does not appear to match how Vintages actually works
+   The Lafite release is the example.
+
+Thursday Drop announced the release correctly.
+
+However:
+
+* the release became available for ordering this morning at 8:30am
+* no morning reminder email was sent
+* the release was still being treated as Preview
+
+That suggests the current release state logic is incorrect.
+
+This is how LCBO Vintages actually works in practice:
+
+* New wines are announced every Thursday morning (typically between 8:30am–9:30am).
+* Those wines become available for ordering the following Thursday.
+* Ordering always opens at 8:30am ET.
+* Users need a reminder before ordering opens.
+
+My expected behavior:
+
+Thursday (announcement day)
+
+* scraper finds new release
+* watchlist matching runs
+* announcement email goes out
+
+Following Thursday
+
+* 7:00am ET: reminder email goes out
+* 8:30am ET: ordering opens
+
+This should happen regardless of whether LCBO explicitly publishes an opening date if the release follows the standard Vintages release cycle.
+
+Please investigate:
+
+* Why the Lafite release remained in Preview status after ordering opened.
+* Why release_opens_at was not populated correctly.
+* Whether the scraper failed to extract the date.
+* Whether we should infer the release date when it follows the normal Vintages schedule.
+* Whether other current releases are vulnerable to the same issue.
+
+Most importantly:
+
+If Thursday Drop announces a wine on a Thursday release, I want confidence that users with matching watchlist items will always receive a reminder email at 7:00am ET on the morning ordering opens.
+
+Please explain:
+
+* how Preview is currently determined
+* how Live is currently determined
+* how release_opens_at is populated
+* how the morning reminder system decides what to send
+
+and propose the safest implementation that reflects how LCBO Vintages actually operates.

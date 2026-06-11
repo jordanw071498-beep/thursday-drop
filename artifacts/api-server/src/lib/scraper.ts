@@ -114,21 +114,44 @@ function generateWineKey(name: string): string {
 }
 
 /**
- * Compute the Thursday of this week (or today if Thursday) at 8:30am Eastern.
- * Used as a fallback when the Vintages page doesn't contain an explicit date.
+ * Compute a release_opens_at timestamp from program status.
+ *
+ * Vintages release cycle:
+ *   - Thursday N   : wines posted as "preview"
+ *   - Thursday N+1 : ordering opens at 8:30am ET ("available")
+ *
+ * For "preview" we infer the FOLLOWING Thursday (N+1) at 8:30am ET so that the
+ * morning-reminder query (which filters by release_opens_at = today) fires
+ * correctly at 7:00am on the day ordering opens — one week later.
+ *
+ * For "available" we use the current/upcoming Thursday at 8:30am ET (or today
+ * if the status just transitioned and today is Thursday).
+ *
  * 8:30am EDT (summer) = 12:30 UTC. 8:30am EST (winter) = 13:30 UTC.
  */
-function computeReleaseOpensAt(status: "preview" | "available"): Date | null {
-  if (status !== "available") return null;
+function computeReleaseOpensAt(status: "preview" | "available"): Date {
   const now = new Date();
-  const utcDay = now.getUTCDay(); // 0=Sun, 1=Mon, ..., 4=Thu
+  const utcDay = now.getUTCDay(); // 0=Sun, 1=Mon, ..., 4=Thu, 5=Fri, 6=Sat
+
+  if (status === "preview") {
+    // "Next Thursday" = most recent Thursday + 7 days.
+    // daysSinceThursday: 0 if today is Thu, 1 if Fri, …, 6 if Wed.
+    const daysSinceThursday = ((utcDay - 4) + 7) % 7;
+    const nextThursday = new Date(now);
+    nextThursday.setUTCDate(nextThursday.getUTCDate() - daysSinceThursday + 7);
+    const month = nextThursday.getUTCMonth();
+    const offsetHours = month >= 3 && month <= 9 ? 4 : 5;
+    nextThursday.setUTCHours(8 + offsetHours, 30, 0, 0);
+    return nextThursday;
+  }
+
+  // "available": upcoming Thursday at 8:30am ET (or today if today is Thursday)
   const daysToThursday = utcDay <= 4 ? 4 - utcDay : 11 - utcDay;
   const thursday = new Date(now);
   thursday.setUTCDate(thursday.getUTCDate() + daysToThursday);
-  // Determine EDT vs EST: DST is active April–October (months 3–9 in 0-indexed)
   const month = thursday.getUTCMonth();
-  const offsetHours = month >= 3 && month <= 9 ? 4 : 5; // EDT=4, EST=5
-  thursday.setUTCHours(8 + offsetHours, 30, 0, 0); // 8:30am ET → UTC
+  const offsetHours = month >= 3 && month <= 9 ? 4 : 5;
+  thursday.setUTCHours(8 + offsetHours, 30, 0, 0);
   return thursday;
 }
 
@@ -619,6 +642,26 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
       errors,
       sample: wines.slice(0, 3).map((w) => `${w.wine_name} | ${w.score ?? "—"} pts | $${w.price ?? "—"} | ${w.vintage ?? "NV"}`),
     });
+  }
+
+  // Reconcile display_order: programs no longer listed on the LCBO index (not
+  // discovered in this run) get pushed to display_order ≥ 500 so they appear
+  // after all currently-visible programs in every tab. The < 500 guard prevents
+  // the offset from accumulating across repeated scrape runs.
+  if (!options.force && programs.length > 0) {
+    const discoveredIds = new Set(programs.map((p) => p.programId));
+    const allCycles = await db
+      .select({ id: releaseCyclesTable.id, program_id: releaseCyclesTable.program_id, display_order: releaseCyclesTable.display_order })
+      .from(releaseCyclesTable);
+    for (const cycle of allCycles) {
+      if (!discoveredIds.has(cycle.program_id) && (cycle.display_order ?? 0) < 500) {
+        await db
+          .update(releaseCyclesTable)
+          .set({ display_order: 500 + (cycle.display_order ?? 0) })
+          .where(eq(releaseCyclesTable.id, cycle.id));
+        logger.info({ programId: cycle.program_id }, "Pushed off-index program to end of display order");
+      }
+    }
   }
 
   // Force mode: prune release_cycles that weren't discovered in this run
