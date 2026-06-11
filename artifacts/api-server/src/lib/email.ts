@@ -256,7 +256,7 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
       : `Your ${wines.length} watchlist wines open for ordering today`;
 
   const inner = `
-    <h1 style="color:#F2EBD9;font-size:20px;line-height:1.3;margin:0 0 18px;font-family:Georgia,serif;">${heading}</h1>
+    <h1 style="color:#F2EBD9;font-size:20px;line-height:1.3;margin:0 0 8px;font-family:Georgia,serif;">${heading}</h1>
     ${cards}
   `;
 
