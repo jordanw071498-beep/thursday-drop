@@ -204,37 +204,59 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
   const cards = wines.map((wine) => {
     const buyUrl =
       wine.buy_url ?? `https://www.lcbo.com/en/search?q=${encodeURIComponent(wine.wine_name)}`;
-    const scoreDisplay = wine.score != null ? `${Math.round(Number(wine.score))} pts` : null;
+
+    const score = wine.score != null ? Math.round(Number(wine.score)) : null;
+    const priceStr = formatPriceDisplay(wine.price);
+
+    const secondaryRows = [
+      tableRow("Vintage", wine.vintage),
+      tableRow("Region", wine.region),
+      wine.qty_available ? tableRow("Qty available", `${wine.qty_available} bottles`) : "",
+    ].filter(Boolean).join("");
 
     return `
-    <div style="padding:28px 0;border-top:1px solid rgba(242,235,217,0.1);">
+    <div style="padding:20px 0 0;border-top:1px solid rgba(242,235,217,0.1);">
       ${programBadge(wine.program_label)}
-      <h2 style="color:#F2EBD9;font-size:18px;line-height:1.35;margin:0 0 6px;font-family:Georgia,serif;">${wine.wine_name}</h2>
-      ${wine.producer ? `<p style="color:#B8860B;font-size:12px;margin:0 0 20px;font-family:sans-serif;letter-spacing:0.02em;">${wine.producer}</p>` : `<div style="margin-bottom:20px;"></div>`}
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-        ${tableRow("Vintage", wine.vintage)}
-        ${tableRow("Region", wine.region)}
-        ${tableRow("Score", scoreDisplay, "#B8860B")}
-        ${tableRow("Price", wine.price ? `$${wine.price}` : null)}
-        ${tableRow("Qty available", wine.qty_available ? `${wine.qty_available} bottles` : null)}
-        ${tableRow("Closes", wine.closing_date)}
+      <h2 style="color:#F2EBD9;font-size:21px;line-height:1.3;margin:0 0 4px;font-family:Georgia,serif;">${wine.wine_name}</h2>
+      ${wine.producer
+        ? `<p style="color:#B8860B;font-size:12px;margin:0 0 16px;font-family:sans-serif;letter-spacing:0.03em;">${wine.producer}</p>`
+        : `<div style="margin-bottom:16px;"></div>`}
+
+      <table style="width:100%;border-collapse:collapse;border-bottom:1px solid rgba(184,134,11,0.18);padding-bottom:2px;margin-bottom:0;">
+        <tr>
+          <td style="width:50%;vertical-align:top;padding:0 10px 16px 0;border-right:1px solid rgba(184,134,11,0.2);">
+            <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#F2EBD9;opacity:0.4;margin-bottom:5px;">Score</div>
+            <div style="font-family:Georgia,serif;line-height:1;color:#B8860B;">
+              <span style="font-size:38px;">${score ?? "—"}</span><span style="font-size:15px;opacity:0.75;margin-left:3px;">pts</span>
+            </div>
+          </td>
+          <td style="width:50%;vertical-align:top;padding:0 0 16px 12px;">
+            <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#F2EBD9;opacity:0.4;margin-bottom:5px;">Price</div>
+            <div style="font-family:Georgia,serif;font-size:38px;line-height:1;color:#F2EBD9;">${priceStr ?? "—"}</div>
+          </td>
+        </tr>
       </table>
-      <a href="${buyUrl}" style="display:inline-block;background:#B8860B;color:#1a040a;padding:11px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">Order Now on LCBO Vintages →</a>
+
+      <div style="background:rgba(184,134,11,0.12);border:1px solid rgba(184,134,11,0.55);padding:14px 16px;margin:16px 0;">
+        <div style="font-family:sans-serif;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#B8860B;margin-bottom:6px;">Ordering Opens</div>
+        <div style="font-family:Georgia,serif;font-size:17px;color:#F2EBD9;line-height:1.3;">Today <span style="color:#B8860B;white-space:nowrap;">at 8:30am ET</span></div>
+      </div>
+
+      <a href="${buyUrl}" style="display:block;background:#B8860B;color:#1a040a;padding:14px 22px;text-decoration:none;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;text-align:center;margin-bottom:24px;">Order on LCBO Vintages →</a>
+
+      ${secondaryRows
+        ? `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">${secondaryRows}</table>`
+        : ""}
     </div>`;
   }).join("");
 
   const heading =
     wines.length === 1
-      ? "Your watchlist wine opens for ordering today at 8:30am ET"
-      : "Your watchlist wines open for ordering today at 8:30am ET";
+      ? "Your watchlist wine opens for ordering today"
+      : `Your ${wines.length} watchlist wines open for ordering today`;
 
   const inner = `
-    <p style="color:#B8860B;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;font-family:sans-serif;margin:0 0 14px;font-weight:600;">Reminder: Ordering Opens Today</p>
-    <h1 style="color:#F2EBD9;font-size:21px;line-height:1.3;margin:0 0 22px;font-family:Georgia,serif;">${heading}</h1>
-    <div style="border-left:3px solid #B8860B;padding:12px 16px;background:rgba(184,134,11,0.08);margin-bottom:8px;">
-      <p style="font-family:sans-serif;font-size:13px;color:#B8860B;font-weight:700;margin:0;">Ordering opens at 8:30am Eastern this morning.</p>
-      <p style="font-family:sans-serif;font-size:12px;color:#F2EBD9;opacity:0.65;margin:4px 0 0;">Quantities are limited — have your LCBO account ready.</p>
-    </div>
+    <h1 style="color:#F2EBD9;font-size:20px;line-height:1.3;margin:0 0 18px;font-family:Georgia,serif;">${heading}</h1>
     ${cards}
   `;
 
