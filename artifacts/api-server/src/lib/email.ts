@@ -41,8 +41,8 @@ function emailWrapper(inner: string, unsubscribeToken?: string | null): string {
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#111;">
-<div style="max-width:600px;margin:0 auto;background:#1a040a;color:#F2EBD9;padding:40px 36px;">
-  <p style="color:#B8860B;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;font-family:sans-serif;margin:0 0 36px;">Thursday Drop</p>
+<div style="max-width:600px;margin:0 auto;background:#1a040a;color:#F2EBD9;padding:22px 36px 36px;">
+  <p style="color:#B8860B;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;font-family:sans-serif;margin:0 0 18px;">Thursday Drop</p>
   ${inner}
   <div style="border-top:1px solid rgba(242,235,217,0.1);margin-top:40px;padding-top:20px;">
     <p style="color:#F2EBD9;opacity:0.3;font-size:11px;font-family:sans-serif;line-height:1.6;margin:0;">
