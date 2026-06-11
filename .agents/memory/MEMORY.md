@@ -1,1 +1,3 @@
 - [Seed script batch deduplication](seed-batch-dedup.md) — ON CONFLICT DO UPDATE fails if same unique key appears twice in one batch; deduplicate within each batch first.
+- [Stripe webhook setup](stripe-webhook.md) — webhooks were not firing; STRIPE_WEBHOOK_SECRET not set in prod; checkout stamps user_id in both session.metadata and subscription_data.metadata (dual path).
+- [Matching engine unicode normalization](matching-normalization.md) — normalizeForMatch() strips diacritics via NFD decomposition before comparison; applied to both runMatchingEngine and queueAlertsForNewWatchlistItem.

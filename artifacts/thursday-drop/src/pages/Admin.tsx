@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User, List, Database } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User, List, Database, Trash2, Wifi, WifiOff, Activity } from "lucide-react";
 
 interface AlertRow {
   id: number;
@@ -28,7 +28,28 @@ interface UserRow {
   email: string;
   is_pro: boolean;
   is_admin: boolean;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  webhook_fired: boolean;
+  alert_count: number;
+  alert_sent_count: number;
+  watchlist_count: number;
   created_at: string;
+}
+
+interface StripeHealth {
+  webhook_secret_set: boolean;
+  stripe_mode: string;
+  pro_users_total: number;
+  pro_users_with_stripe_id: number;
+  users_with_customer_id: number;
+  webhook_firing_correctly: boolean;
+  warnings: string[];
+  instructions: {
+    webhook_url: string;
+    events_to_subscribe: string[];
+    env_var: string;
+  };
 }
 
 interface WatchlistItem {
@@ -155,6 +176,7 @@ export default function Admin() {
   const { data: alertsData, refetch: refetchAlerts } = useAdminFetch<{ alerts: AlertRow[] }>("/admin/alerts", token);
   const { data: usersData, refetch: refetchUsers } = useAdminFetch<{ users: UserRow[] }>("/admin/users", token);
   const { data: watchlistsData } = useAdminFetch<{ users: WatchlistUser[]; total_items: number; total_categories: number; total_users: number }>("/admin/watchlists", token);
+  const { data: stripeHealthData, refetch: refetchStripeHealth } = useAdminFetch<StripeHealth>("/admin/stripe-health", token);
 
   const sendAlerts = useSendAlerts();
   const sendWeeklyPicks = useSendWeeklyPicks();
@@ -177,6 +199,9 @@ export default function Admin() {
   // Confirmation dialog state for Send All Pending
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSendingConfirmed, setIsSendingConfirmed] = useState(false);
+
+  // Delete user state: id → 'idle' | 'confirm' | 'confirm_pro' | 'deleting'
+  const [deleteState, setDeleteState] = useState<Record<string, "confirm" | "confirm_pro" | "deleting">>({});
 
   const alerts = alertsData?.alerts ?? [];
   const users = usersData?.users ?? [];
@@ -288,6 +313,41 @@ export default function Admin() {
     );
   };
 
+  const handleDeleteUser = async (user: UserRow) => {
+    if (!token) return;
+    const step = deleteState[user.id];
+    // Step 1: show confirm
+    if (!step) {
+      setDeleteState((s) => ({ ...s, [user.id]: "confirm" }));
+      return;
+    }
+    // Step 2: if pro and not yet confirmed_pro, require second step
+    if (step === "confirm" && user.is_pro) {
+      setDeleteState((s) => ({ ...s, [user.id]: "confirm_pro" }));
+      return;
+    }
+    // Final step: do the delete
+    setDeleteState((s) => ({ ...s, [user.id]: "deleting" }));
+    try {
+      const body: Record<string, boolean> = { confirm: true };
+      if (user.is_pro) body.confirm_pro = true;
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Delete failed");
+      toast({ title: `Deleted ${user.email}`, description: `${data.deleted.alerts} alerts, ${data.deleted.watchlist_items} watchlist items removed.` });
+      await refetchUsers();
+      await refetchStats();
+    } catch (err: any) {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteState((s) => { const next = { ...s }; delete next[user.id]; return next; });
+    }
+  };
+
   const handleTogglePro = async (user: UserRow) => {
     if (!token) return;
     setTogglingId(user.id);
@@ -347,6 +407,7 @@ export default function Admin() {
               { value: "alerts", label: "Alerts" },
               { value: "users", label: "Users" },
               { value: "watchlists", label: "Watchlists" },
+              { value: "stripe", label: "Stripe Health" },
               { value: "newsletter", label: "Newsletter" },
             ].map((tab) => (
               <TabsTrigger
@@ -792,56 +853,131 @@ export default function Admin() {
                     <thead>
                       <tr className="border-b border-border text-xs uppercase tracking-widest text-muted-foreground">
                         <th className="text-left px-6 py-3">Email</th>
-                        <th className="text-left px-4 py-3">Status</th>
+                        <th className="text-left px-4 py-3">Plan</th>
+                        <th className="text-left px-4 py-3">Stripe</th>
+                        <th className="text-left px-4 py-3">Watchlist</th>
+                        <th className="text-left px-4 py-3">Alerts</th>
                         <th className="text-left px-4 py-3">Joined</th>
                         <th className="text-left px-4 py-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {users.map((user) => (
-                        <tr key={user.id} className="hover:bg-background/30 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              {user.is_admin ? (
-                                <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                      {users.map((user) => {
+                        const ds = deleteState[user.id];
+                        return (
+                          <tr key={user.id} className={`transition-colors ${ds ? "bg-red-950/20" : "hover:bg-background/30"}`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                {user.is_admin ? (
+                                  <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                                ) : (
+                                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                )}
+                                <span className="text-foreground">{user.email}</span>
+                                {user.id === profile?.id && (
+                                  <span className="text-xs text-muted-foreground">(you)</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex gap-2 flex-wrap">
+                                {user.is_pro && (
+                                  <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">Pro</span>
+                                )}
+                                {user.is_admin && (
+                                  <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">Admin</span>
+                                )}
+                                {!user.is_pro && !user.is_admin && (
+                                  <span className="text-xs text-muted-foreground">Free</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              {user.is_pro ? (
+                                user.webhook_fired ? (
+                                  <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                                    <Wifi className="h-3 w-3" /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-xs text-amber-400">
+                                    <WifiOff className="h-3 w-3" /> No webhook
+                                  </span>
+                                )
                               ) : (
-                                <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="text-xs text-muted-foreground/40">—</span>
                               )}
-                              <span className="text-foreground">{user.email}</span>
-                              {user.id === profile?.id && (
-                                <span className="text-xs text-muted-foreground">(you)</span>
+                            </td>
+                            <td className="px-4 py-4 text-muted-foreground text-xs font-mono">
+                              {user.watchlist_count > 0 ? user.watchlist_count : <span className="text-muted-foreground/40">0</span>}
+                            </td>
+                            <td className="px-4 py-4 text-muted-foreground text-xs font-mono">
+                              {user.alert_count > 0 ? (
+                                <span>{user.alert_sent_count}<span className="text-muted-foreground/50">/{user.alert_count}</span></span>
+                              ) : (
+                                <span className="text-muted-foreground/40">0</span>
                               )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4">
-                            <div className="flex gap-2 flex-wrap">
-                              {user.is_pro && (
-                                <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 uppercase tracking-widest">Pro</span>
+                            </td>
+                            <td className="px-4 py-4 text-muted-foreground text-xs">
+                              {new Date(user.created_at).toLocaleDateString("en-CA")}
+                            </td>
+                            <td className="px-4 py-4">
+                              {ds ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs text-red-400">
+                                    {ds === "confirm" && user.is_pro
+                                      ? "Pro user — click again to confirm"
+                                      : ds === "confirm_pro"
+                                        ? "⚠ Paid user — final confirm"
+                                        : "Deleting…"}
+                                  </span>
+                                  {ds !== "deleting" && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleDeleteUser(user)}
+                                        className="rounded-none text-xs tracking-widest uppercase h-7 px-3 bg-red-800 hover:bg-red-700 text-white"
+                                      >
+                                        {ds === "confirm_pro" ? "Delete Pro User" : "Confirm"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setDeleteState((s) => { const n = { ...s }; delete n[user.id]; return n; })}
+                                        className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant={user.is_pro ? "outline" : "default"}
+                                    disabled={togglingId === user.id}
+                                    onClick={() => handleTogglePro(user)}
+                                    className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
+                                  >
+                                    {togglingId === user.id ? "..." : user.is_pro ? "Remove Pro" : "Grant Pro"}
+                                  </Button>
+                                  {user.id !== profile?.id && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDeleteUser(user)}
+                                      className="rounded-none text-xs h-7 px-2 border-red-900/50 text-red-500 hover:bg-red-950/30 hover:border-red-700"
+                                      title="Delete user account"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
                               )}
-                              {user.is_admin && (
-                                <span className="text-xs px-2 py-0.5 bg-amber-900/30 text-amber-400 border border-amber-700/30 uppercase tracking-widest">Admin</span>
-                              )}
-                              {!user.is_pro && !user.is_admin && (
-                                <span className="text-xs text-muted-foreground">Free</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 text-muted-foreground text-xs">
-                            {new Date(user.created_at).toLocaleDateString("en-CA")}
-                          </td>
-                          <td className="px-4 py-4">
-                            <Button
-                              size="sm"
-                              variant={user.is_pro ? "outline" : "default"}
-                              disabled={togglingId === user.id}
-                              onClick={() => handleTogglePro(user)}
-                              className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
-                            >
-                              {togglingId === user.id ? "..." : user.is_pro ? "Remove Pro" : "Grant Pro"}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -938,6 +1074,124 @@ export default function Admin() {
                     );
                   })}
                 </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Stripe Health */}
+          <TabsContent value="stripe">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-serif text-2xl">Stripe Webhook Health</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Diagnose why Pro subscriptions may not be activating automatically.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refetchStripeHealth()}
+                  className="rounded-none tracking-widest uppercase text-xs"
+                >
+                  <Activity className="h-3.5 w-3.5 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+
+              {stripeHealthData ? (
+                <>
+                  {/* Warnings */}
+                  {stripeHealthData.warnings.length > 0 && (
+                    <div className="border border-amber-700/60 bg-amber-950/30 p-4 space-y-2">
+                      {stripeHealthData.warnings.map((w, i) => (
+                        <div key={i} className="flex items-start gap-2 text-amber-400">
+                          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                          <p className="text-sm">{w}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {stripeHealthData.warnings.length === 0 && (
+                    <div className="border border-emerald-700/40 bg-emerald-950/20 p-4 flex items-center gap-2 text-emerald-400">
+                      <CheckCircle className="h-4 w-4 shrink-0" />
+                      <p className="text-sm font-medium">All webhook health checks passing.</p>
+                    </div>
+                  )}
+
+                  {/* Status grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-card border border-border p-4">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Webhook Secret</p>
+                      {stripeHealthData.webhook_secret_set ? (
+                        <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium"><CheckCircle className="h-4 w-4" /> Set</div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-red-400 text-sm font-medium"><AlertTriangle className="h-4 w-4" /> Not Set</div>
+                      )}
+                    </div>
+                    <div className="bg-card border border-border p-4">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Stripe Mode</p>
+                      <p className={`text-sm font-medium font-mono uppercase ${stripeHealthData.stripe_mode === "live" ? "text-emerald-400" : stripeHealthData.stripe_mode === "test" ? "text-amber-400" : "text-red-400"}`}>
+                        {stripeHealthData.stripe_mode}
+                      </p>
+                    </div>
+                    <div className="bg-card border border-border p-4">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Pro Users</p>
+                      <p className="font-mono text-2xl font-bold">{stripeHealthData.pro_users_total}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{stripeHealthData.pro_users_with_stripe_id} with Stripe ID</p>
+                    </div>
+                    <div className="bg-card border border-border p-4">
+                      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Webhook Firing</p>
+                      {stripeHealthData.webhook_firing_correctly ? (
+                        <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium"><Wifi className="h-4 w-4" /> Yes</div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-red-400 text-sm font-medium"><WifiOff className="h-4 w-4" /> No</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Setup instructions */}
+                  <div className="bg-card border border-border p-6 space-y-4">
+                    <h3 className="font-serif text-lg">Production Setup Checklist</h3>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-start gap-3">
+                        {stripeHealthData.stripe_mode === "live" ? <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" /> : <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />}
+                        <div>
+                          <p className="font-medium text-foreground">Use live Stripe keys</p>
+                          <p className="text-muted-foreground text-xs">Set <code className="font-mono bg-muted px-1">STRIPE_SECRET_KEY</code> to your <code className="font-mono bg-muted px-1">sk_live_...</code> key in Vercel env vars.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        {stripeHealthData.webhook_secret_set ? <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" /> : <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />}
+                        <div>
+                          <p className="font-medium text-foreground">Set webhook signing secret</p>
+                          <p className="text-muted-foreground text-xs">Set <code className="font-mono bg-muted px-1">STRIPE_WEBHOOK_SECRET</code> to the signing secret from the Stripe Dashboard → Webhooks.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium text-foreground">Register webhook endpoint</p>
+                          <p className="text-muted-foreground text-xs break-all">
+                            Stripe Dashboard → Developers → Webhooks → Add endpoint:<br />
+                            <code className="font-mono bg-muted px-1">{stripeHealthData.instructions.webhook_url}</code>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium text-foreground">Subscribe to these events</p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {stripeHealthData.instructions.events_to_subscribe.map((e) => (
+                              <code key={e} className="font-mono text-xs bg-muted px-1.5 py-0.5 text-muted-foreground">{e}</code>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-card border border-border p-16 text-center text-muted-foreground">Loading Stripe health…</div>
               )}
             </div>
           </TabsContent>

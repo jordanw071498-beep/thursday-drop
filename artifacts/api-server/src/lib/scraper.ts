@@ -391,6 +391,20 @@ const CATEGORY_MATCHERS: Record<string, (w: InsertedWine) => boolean> = {
     /sauternes|d'yquem|yquem|beerenauslese|trockenbeerenauslese|eiswein|tokaj/i.test(w.wine_name) || /sauternes/i.test(w.region ?? ""),
 };
 
+/**
+ * Normalize a string for fuzzy matching: decompose unicode, strip diacritics,
+ * then lowercase. This ensures accented chars match their unaccented equivalents
+ * regardless of which side (LCBO or user input) uses the accent.
+ *
+ * Examples: "Álvaro" → "alvaro", "Romanée" → "romanee", "Prieuré" → "prieure"
+ */
+function normalizeForMatch(s: string): string {
+  return s
+    .normalize("NFD")               // decompose é → e + combining accent
+    .replace(/[\u0300-\u036f]/g, "") // strip combining diacritic marks
+    .toLowerCase();
+}
+
 async function runMatchingEngine(insertedWines: InsertedWine[], isTest = false): Promise<number> {
   const watchlistItems = await db.select().from(watchlistItemsTable);
   const categoryItems = await db.select().from(watchlistCategoriesTable);
@@ -402,14 +416,18 @@ async function runMatchingEngine(insertedWines: InsertedWine[], isTest = false):
       let matches = false;
       if (item.match_type === "producer") {
         if (wine.producer && item.producer) {
+          const normWineProducer = normalizeForMatch(wine.producer);
+          const normItemProducer = normalizeForMatch(item.producer);
           matches =
-            wine.producer.toLowerCase().includes(item.producer.toLowerCase()) ||
-            item.producer.toLowerCase().includes(wine.producer.toLowerCase());
+            normWineProducer.includes(normItemProducer) ||
+            normItemProducer.includes(normWineProducer);
         }
       } else {
+        const normWineName = normalizeForMatch(wine.wine_name);
+        const normItemName = normalizeForMatch(item.wine_name);
         const nameHit =
-          wine.wine_name.toLowerCase().includes(item.wine_name.toLowerCase()) ||
-          item.wine_name.toLowerCase().includes(wine.wine_name.toLowerCase());
+          normWineName.includes(normItemName) ||
+          normItemName.includes(normWineName);
         if (nameHit) {
           matches = item.match_type === "wine" || !item.vintage || wine.vintage === item.vintage;
         }
@@ -485,14 +503,18 @@ export async function queueAlertsForNewWatchlistItem(
     let matches = false;
     if (item.match_type === "producer") {
       if (wine.producer && item.producer) {
+        const normWineProducer = normalizeForMatch(wine.producer);
+        const normItemProducer = normalizeForMatch(item.producer);
         matches =
-          wine.producer.toLowerCase().includes(item.producer.toLowerCase()) ||
-          item.producer.toLowerCase().includes(wine.producer.toLowerCase());
+          normWineProducer.includes(normItemProducer) ||
+          normItemProducer.includes(normWineProducer);
       }
     } else {
+      const normWineName = normalizeForMatch(wine.wine_name);
+      const normItemName = normalizeForMatch(item.wine_name);
       const nameHit =
-        wine.wine_name.toLowerCase().includes(item.wine_name.toLowerCase()) ||
-        item.wine_name.toLowerCase().includes(wine.wine_name.toLowerCase());
+        normWineName.includes(normItemName) ||
+        normItemName.includes(normWineName);
       if (nameHit) {
         matches = item.match_type === "wine" || !item.vintage || wine.vintage === item.vintage;
       }

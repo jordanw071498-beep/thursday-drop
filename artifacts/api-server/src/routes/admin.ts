@@ -9,6 +9,7 @@ import {
   watchlistItemsTable,
   watchlistCategoriesTable,
   emailSubscribersTable,
+  passwordResetTokensTable,
 } from "@workspace/db";
 import {
   GetAdminStatsResponse,
@@ -252,14 +253,43 @@ router.get("/admin/users", async (req, res): Promise<void> => {
       email: profilesTable.email,
       is_pro: profilesTable.is_pro,
       is_admin: profilesTable.is_admin,
+      stripe_customer_id: profilesTable.stripe_customer_id,
+      stripe_subscription_id: profilesTable.stripe_subscription_id,
       created_at: profilesTable.created_at,
     })
     .from(profilesTable)
     .orderBy(desc(profilesTable.created_at))
     .limit(200);
 
+  // Alert counts per user
+  const alertCounts = await db
+    .select({
+      user_id: alertsTable.user_id,
+      total: sql<number>`count(*)`,
+      sent: sql<number>`sum(case when ${alertsTable.announcement_alert_sent} then 1 else 0 end)`,
+    })
+    .from(alertsTable)
+    .groupBy(alertsTable.user_id);
+
+  const alertCountMap = new Map(alertCounts.map((a) => [a.user_id, { total: Number(a.total), sent: Number(a.sent) }]));
+
+  // Watchlist item counts per user
+  const watchlistCounts = await db
+    .select({ user_id: watchlistItemsTable.user_id, count: sql<number>`count(*)` })
+    .from(watchlistItemsTable)
+    .groupBy(watchlistItemsTable.user_id);
+
+  const watchlistCountMap = new Map(watchlistCounts.map((w) => [w.user_id, Number(w.count)]));
+
   res.json({
-    users: users.map((u) => ({ ...u, created_at: u.created_at.toISOString() })),
+    users: users.map((u) => ({
+      ...u,
+      created_at: u.created_at.toISOString(),
+      alert_count: alertCountMap.get(u.id)?.total ?? 0,
+      alert_sent_count: alertCountMap.get(u.id)?.sent ?? 0,
+      watchlist_count: watchlistCountMap.get(u.id) ?? 0,
+      webhook_fired: !!u.stripe_customer_id,
+    })),
   });
 });
 
@@ -461,6 +491,266 @@ router.post("/admin/send-picks", async (req, res): Promise<void> => {
     logger.error({ err }, "Send weekly picks error");
     res.json(SendWeeklyPicksResponse.parse({ success: false, sent: 0, message: "Failed to send weekly picks" }));
   }
+});
+
+// ── GET /admin/stripe-health ─────────────────────────────────────────────────
+// Shows webhook configuration health so you can diagnose Pro activation failures.
+router.get("/admin/stripe-health", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const webhookSecretSet = !!process.env.STRIPE_WEBHOOK_SECRET;
+  const stripeKey = process.env.STRIPE_SECRET_KEY ?? "";
+  const stripeMode = stripeKey.startsWith("sk_live_") ? "live" : stripeKey.startsWith("sk_test_") ? "test" : "unknown";
+
+  const [usersWithCustomerId] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(profilesTable)
+    .where(sql`${profilesTable.stripe_customer_id} IS NOT NULL`);
+
+  const [proUsersTotal] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(profilesTable)
+    .where(eq(profilesTable.is_pro, true));
+
+  const [proWithStripe] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(profilesTable)
+    .where(
+      and(
+        eq(profilesTable.is_pro, true),
+        sql`${profilesTable.stripe_customer_id} IS NOT NULL`,
+      ),
+    );
+
+  const proUsersCount = Number(proUsersTotal?.count ?? 0);
+  const proWithStripeCount = Number(proWithStripe?.count ?? 0);
+  const webhookFiringCorrectly = proUsersCount === 0 || proWithStripeCount > 0;
+
+  const warnings: string[] = [];
+  if (!webhookSecretSet) {
+    warnings.push("STRIPE_WEBHOOK_SECRET is not set — webhooks are processed WITHOUT signature verification");
+  }
+  if (stripeMode === "test") {
+    warnings.push("Stripe is in TEST mode — use live keys in production");
+  }
+  if (stripeMode === "unknown") {
+    warnings.push("STRIPE_SECRET_KEY not set or unrecognized format");
+  }
+  if (proUsersCount > 0 && proWithStripeCount === 0) {
+    warnings.push(`${proUsersCount} Pro user(s) have no stripe_customer_id — webhooks have not fired successfully yet`);
+  }
+
+  logger.info({ webhookSecretSet, stripeMode, proUsersCount, proWithStripeCount }, "Stripe health check requested");
+
+  res.json({
+    webhook_secret_set: webhookSecretSet,
+    stripe_mode: stripeMode,
+    pro_users_total: proUsersCount,
+    pro_users_with_stripe_id: proWithStripeCount,
+    users_with_customer_id: Number(usersWithCustomerId?.count ?? 0),
+    webhook_firing_correctly: webhookFiringCorrectly,
+    warnings,
+    instructions: {
+      webhook_url: "Register https://<your-domain>/api/stripe/webhook in Stripe Dashboard → Webhooks",
+      events_to_subscribe: [
+        "checkout.session.completed",
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+      ],
+      env_var: "Set STRIPE_WEBHOOK_SECRET to the signing secret shown in the Stripe webhook dashboard",
+    },
+  });
+});
+
+// ── GET /admin/users/:id ──────────────────────────────────────────────────────
+// Full user detail: profile, Stripe status, watchlist, alert history.
+router.get("/admin/users/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const targetId = req.params.id;
+
+  const [profile] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.id, targetId))
+    .limit(1);
+
+  if (!profile) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const [watchlistItems, watchlistCategories, userAlerts] = await Promise.all([
+    db
+      .select({
+        id: watchlistItemsTable.id,
+        wine_name: watchlistItemsTable.wine_name,
+        producer: watchlistItemsTable.producer,
+        vintage: watchlistItemsTable.vintage,
+        match_type: watchlistItemsTable.match_type,
+        created_at: watchlistItemsTable.created_at,
+      })
+      .from(watchlistItemsTable)
+      .where(eq(watchlistItemsTable.user_id, targetId))
+      .orderBy(watchlistItemsTable.created_at),
+
+    db
+      .select({
+        id: watchlistCategoriesTable.id,
+        category: watchlistCategoriesTable.category,
+        created_at: watchlistCategoriesTable.created_at,
+      })
+      .from(watchlistCategoriesTable)
+      .where(eq(watchlistCategoriesTable.user_id, targetId))
+      .orderBy(watchlistCategoriesTable.created_at),
+
+    db
+      .select({
+        id: alertsTable.id,
+        wine_name: alertsTable.wine_name,
+        announcement_alert_sent: alertsTable.announcement_alert_sent,
+        morning_alert_sent: alertsTable.morning_alert_sent,
+        sent_at: alertsTable.sent_at,
+        morning_sent_at: alertsTable.morning_sent_at,
+        is_test: alertsTable.is_test,
+        created_at: alertsTable.created_at,
+      })
+      .from(alertsTable)
+      .where(eq(alertsTable.user_id, targetId))
+      .orderBy(desc(alertsTable.created_at))
+      .limit(200),
+  ]);
+
+  res.json({
+    profile: {
+      id: profile.id,
+      email: profile.email,
+      is_pro: profile.is_pro,
+      is_admin: profile.is_admin,
+      stripe_customer_id: profile.stripe_customer_id,
+      stripe_subscription_id: profile.stripe_subscription_id,
+      created_at: profile.created_at.toISOString(),
+      stripe_status: profile.stripe_customer_id
+        ? "webhook_received"
+        : profile.is_pro
+          ? "pro_manual_or_webhook_missed"
+          : "free",
+    },
+    watchlist: {
+      items: watchlistItems.map((i) => ({ ...i, created_at: i.created_at.toISOString() })),
+      categories: watchlistCategories.map((c) => ({ ...c, created_at: c.created_at.toISOString() })),
+      total: watchlistItems.length + watchlistCategories.length,
+    },
+    alerts: {
+      total: userAlerts.length,
+      sent: userAlerts.filter((a) => a.announcement_alert_sent).length,
+      pending: userAlerts.filter((a) => !a.announcement_alert_sent).length,
+      morning_sent: userAlerts.filter((a) => a.morning_alert_sent).length,
+      items: userAlerts.map((a) => ({
+        ...a,
+        sent_at: a.sent_at?.toISOString() ?? null,
+        morning_sent_at: a.morning_sent_at?.toISOString() ?? null,
+        created_at: a.created_at.toISOString(),
+      })),
+    },
+  });
+});
+
+// ── DELETE /admin/users/:id ───────────────────────────────────────────────────
+// Hard-delete a user and all related data.
+// Requires { confirm: true } in request body.
+// If user is Pro, also requires { confirm_pro: true } as an extra safeguard.
+router.delete("/admin/users/:id", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const targetId = req.params.id;
+  const { confirm, confirm_pro } = req.body ?? {};
+
+  const [profile] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.id, targetId))
+    .limit(1);
+
+  if (!profile) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  // Require explicit confirmation
+  if (!confirm) {
+    res.status(400).json({
+      error: "Confirmation required",
+      message: `You are about to permanently delete ${profile.email}. Send { confirm: true${profile.is_pro ? ", confirm_pro: true" : ""} } to proceed.`,
+      user: { id: profile.id, email: profile.email, is_pro: profile.is_pro, has_stripe_id: !!profile.stripe_customer_id },
+    });
+    return;
+  }
+
+  // Extra guard for Pro users — they may have an active paid subscription
+  if (profile.is_pro && !confirm_pro) {
+    res.status(400).json({
+      error: "Pro user confirmation required",
+      message: `${profile.email} is a Pro subscriber${profile.stripe_customer_id ? " with a linked Stripe account" : " (manually set Pro, no Stripe link)"}. Also send { confirm_pro: true } to confirm deletion. Cancel their Stripe subscription in the Stripe dashboard first if applicable.`,
+      user: { id: profile.id, email: profile.email, is_pro: profile.is_pro, stripe_customer_id: profile.stripe_customer_id },
+    });
+    return;
+  }
+
+  // Cascade delete in FK-safe order
+  const [deletedAlerts] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(alertsTable)
+    .where(eq(alertsTable.user_id, targetId));
+
+  const [deletedWatchlistItems] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(watchlistItemsTable)
+    .where(eq(watchlistItemsTable.user_id, targetId));
+
+  const [deletedWatchlistCats] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(watchlistCategoriesTable)
+    .where(eq(watchlistCategoriesTable.user_id, targetId));
+
+  await db.delete(alertsTable).where(eq(alertsTable.user_id, targetId));
+  await db.delete(watchlistItemsTable).where(eq(watchlistItemsTable.user_id, targetId));
+  await db.delete(watchlistCategoriesTable).where(eq(watchlistCategoriesTable.user_id, targetId));
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.user_id, targetId));
+  await db.delete(profilesTable).where(eq(profilesTable.id, targetId));
+
+  logger.info(
+    {
+      deletedUserId: targetId,
+      deletedEmail: profile.email,
+      wasPro: profile.is_pro,
+      alertsDeleted: Number(deletedAlerts?.count ?? 0),
+      watchlistItemsDeleted: Number(deletedWatchlistItems?.count ?? 0),
+      watchlistCatsDeleted: Number(deletedWatchlistCats?.count ?? 0),
+    },
+    "Admin deleted user account",
+  );
+
+  res.json({
+    success: true,
+    deleted: {
+      email: profile.email,
+      was_pro: profile.is_pro,
+      alerts: Number(deletedAlerts?.count ?? 0),
+      watchlist_items: Number(deletedWatchlistItems?.count ?? 0),
+      watchlist_categories: Number(deletedWatchlistCats?.count ?? 0),
+    },
+  });
 });
 
 export default router;
