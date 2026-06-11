@@ -639,6 +639,61 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   return { sent, responses };
 }
 
+// ─── Morning Reminder Preview (admin one-off, no DB writes) ──────────────────
+
+/**
+ * Sends a single morning-reminder email using live DB wine data.
+ * Safe to call at any time: does NOT read or update any alert records.
+ * Intended for admin testing / screenshots only.
+ */
+export async function sendMorningReminderPreview(
+  wineId: number,
+  toEmail: string,
+): Promise<{ sent: number; subject: string }> {
+  const rows = await db
+    .select({
+      wine: winesTable,
+      cycle: releaseCyclesTable,
+    })
+    .from(winesTable)
+    .innerJoin(releaseCyclesTable, eq(winesTable.release_cycle_id, releaseCyclesTable.id))
+    .where(eq(winesTable.id, wineId))
+    .limit(1);
+
+  if (rows.length === 0) throw new Error(`Wine id ${wineId} not found`);
+
+  const { wine, cycle } = rows[0];
+
+  const entry: WineEntry = {
+    id: wine.id,
+    wine_name: wine.wine_name,
+    producer: wine.producer,
+    region: wine.region,
+    vintage: wine.vintage,
+    score: wine.score,
+    price: wine.price,
+    qty_available: wine.qty_available,
+    closing_date: wine.closing_date,
+    buy_url: wine.buy_url,
+    program_label: cycle.program_label,
+    release_opens_at: cycle.release_opens_at,
+  };
+
+  const subject =
+    `${wine.wine_name} opens for ordering today at 8:30am ET`;
+
+  const resend = getResendClient();
+  await resend.emails.send({
+    from: FROM_ALERTS,
+    to: toEmail,
+    subject,
+    html: buildMorningDigestHtml([entry]),
+  });
+
+  logger.info({ wineId, toEmail, subject }, "Morning reminder preview sent");
+  return { sent: 1, subject };
+}
+
 // ─── Password Reset ───────────────────────────────────────────────────────────
 
 export async function sendPasswordResetEmail(toEmail: string, resetToken: string): Promise<void> {

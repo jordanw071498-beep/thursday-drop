@@ -415,6 +415,32 @@ router.post("/admin/import-wikidata", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/admin/morning-reminder-preview", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { wine_id, email } = req.body ?? {};
+  if (!wine_id || typeof wine_id !== "number") {
+    res.status(400).json({ error: "wine_id (number) is required" });
+    return;
+  }
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    res.status(400).json({ error: "A valid email address is required" });
+    return;
+  }
+
+  try {
+    const emailLib = await import("../lib/email.js");
+    const result = await emailLib.sendMorningReminderPreview(wine_id, email);
+    res.json({ success: true, sent: result.sent, subject: result.subject });
+  } catch (err: any) {
+    logger.error({ err }, "Morning reminder preview error");
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post("/admin/send-picks", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });
