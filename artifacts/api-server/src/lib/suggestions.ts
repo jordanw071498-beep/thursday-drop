@@ -57,8 +57,39 @@ export async function upsertSuggestions(
 
   const values = [...seen.values()];
 
-  for (let i = 0; i < values.length; i += BATCH_SIZE) {
-    const batch = values.slice(i, i + BATCH_SIZE);
+  // Auto-generate producer records for any wine entries that name a producer.
+  // This ensures that typing a producer name always yields a producer suggestion
+  // even if only wine records were imported for that producer.
+  const autoProducers = new Map<string, {
+    display_name: string;
+    normalized_name: string;
+    producer: string | null;
+    wine_name: string | null;
+    type: string;
+    source: string;
+    count: number;
+  }>();
+  for (const v of values) {
+    if (v.type === "wine" && v.producer) {
+      const key = `${normalize(v.producer)}::producer`;
+      if (!seen.has(key) && !autoProducers.has(key)) {
+        autoProducers.set(key, {
+          display_name: v.producer,
+          normalized_name: normalize(v.producer),
+          producer: v.producer,
+          wine_name: null,
+          type: "producer",
+          source,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const allValues = [...values, ...autoProducers.values()];
+
+  for (let i = 0; i < allValues.length; i += BATCH_SIZE) {
+    const batch = allValues.slice(i, i + BATCH_SIZE);
     await db
       .insert(wineSuggestionsTable)
       .values(batch)

@@ -17,7 +17,16 @@ async function upsert(rows: Array<{
   if (rows.length === 0) return 0;
   // Deduplicate by (display_name, type) before batching — PostgreSQL rejects
   // ON CONFLICT DO UPDATE when the same row is targeted twice in one statement.
-  const seen = new Map<string, typeof values[number]>();
+  type Row = {
+    display_name: string;
+    normalized_name: string;
+    producer: string | null;
+    wine_name: string | null;
+    type: string;
+    source: string;
+    count: number;
+  };
+  const seen = new Map<string, Row>();
   for (const row of rows) {
     const key = `${row.display_name.trim().toLowerCase()}::${row.type}`;
     if (!seen.has(key)) {
@@ -345,10 +354,47 @@ const CURATED: Array<{ display_name: string; producer: string | null; wine_name:
   { display_name: "Zuccardi", producer: "Zuccardi", wine_name: null, type: "producer" },
   { display_name: "Clos de los Siete", producer: null, wine_name: "Clos de los Siete", type: "wine" },
   // Chile
-  { display_name: "Almaviva", producer: "Almaviva", wine_name: "Almaviva", type: "wine" },
+  { display_name: "Almaviva Winery", producer: "Almaviva Winery", wine_name: null, type: "producer" },
+  { display_name: "Almaviva", producer: "Almaviva Winery", wine_name: "Almaviva", type: "wine" },
   { display_name: "Seña", producer: null, wine_name: "Seña", type: "wine" },
   { display_name: "Concha y Toro", producer: "Concha y Toro", wine_name: null, type: "producer" },
-  { display_name: "Almaviva Winery", producer: "Almaviva Winery", wine_name: null, type: "producer" },
+  // Whisky & Spirits — Scotch single malt
+  { display_name: "Macallan", producer: "Macallan", wine_name: null, type: "producer" },
+  { display_name: "Springbank", producer: "Springbank", wine_name: null, type: "producer" },
+  { display_name: "Longrow", producer: "Longrow", wine_name: null, type: "producer" },
+  { display_name: "Hazelburn", producer: "Hazelburn", wine_name: null, type: "producer" },
+  { display_name: "Glenfarclas", producer: "Glenfarclas", wine_name: null, type: "producer" },
+  { display_name: "Ardbeg", producer: "Ardbeg", wine_name: null, type: "producer" },
+  { display_name: "Laphroaig", producer: "Laphroaig", wine_name: null, type: "producer" },
+  { display_name: "Lagavulin", producer: "Lagavulin", wine_name: null, type: "producer" },
+  { display_name: "Highland Park", producer: "Highland Park", wine_name: null, type: "producer" },
+  { display_name: "Glenlivet", producer: "Glenlivet", wine_name: null, type: "producer" },
+  { display_name: "Glenfiddich", producer: "Glenfiddich", wine_name: null, type: "producer" },
+  { display_name: "Balvenie", producer: "Balvenie", wine_name: null, type: "producer" },
+  { display_name: "Dalmore", producer: "Dalmore", wine_name: null, type: "producer" },
+  { display_name: "Glenmorangie", producer: "Glenmorangie", wine_name: null, type: "producer" },
+  { display_name: "Oban", producer: "Oban", wine_name: null, type: "producer" },
+  { display_name: "Talisker", producer: "Talisker", wine_name: null, type: "producer" },
+  { display_name: "Bowmore", producer: "Bowmore", wine_name: null, type: "producer" },
+  { display_name: "Bruichladdich", producer: "Bruichladdich", wine_name: null, type: "producer" },
+  { display_name: "Caol Ila", producer: "Caol Ila", wine_name: null, type: "producer" },
+  { display_name: "GlenDronach", producer: "GlenDronach", wine_name: null, type: "producer" },
+  { display_name: "Mortlach", producer: "Mortlach", wine_name: null, type: "producer" },
+  { display_name: "Benromach", producer: "Benromach", wine_name: null, type: "producer" },
+  { display_name: "GlenAllachie", producer: "GlenAllachie", wine_name: null, type: "producer" },
+  { display_name: "Bunnahabhain", producer: "Bunnahabhain", wine_name: null, type: "producer" },
+  { display_name: "Kilchoman", producer: "Kilchoman", wine_name: null, type: "producer" },
+  { display_name: "Glen Scotia", producer: "Glen Scotia", wine_name: null, type: "producer" },
+  { display_name: "Benriach", producer: "Benriach", wine_name: null, type: "producer" },
+  { display_name: "Glendullan", producer: "Glendullan", wine_name: null, type: "producer" },
+  // Whisky & Spirits — Japanese
+  { display_name: "Yamazaki", producer: "Yamazaki", wine_name: null, type: "producer" },
+  { display_name: "Hakushu", producer: "Hakushu", wine_name: null, type: "producer" },
+  { display_name: "Hibiki", producer: "Hibiki", wine_name: null, type: "producer" },
+  { display_name: "Nikka", producer: "Nikka", wine_name: null, type: "producer" },
+  { display_name: "Nikka Coffey", producer: "Nikka", wine_name: null, type: "producer" },
+  { display_name: "Chichibu", producer: "Chichibu", wine_name: null, type: "producer" },
+  { display_name: "Kavalan", producer: "Kavalan", wine_name: null, type: "producer" },
   // South Africa
   { display_name: "Kanonkop", producer: "Kanonkop", wine_name: null, type: "producer" },
   { display_name: "Meerlust", producer: "Meerlust", wine_name: null, type: "producer" },
@@ -371,12 +417,52 @@ async function seedCurated() {
   console.log(`[curated] inserted/updated ${n} rows`);
 }
 
+// ─── 4. Auto-generate producer records from wine entries that have a producer field
+// This is a safety-net pass: ensures any wine that names a producer also has a
+// standalone producer record so autocomplete works on the producer name alone.
+async function seedProducersFromWines() {
+  const wines = await db
+    .select({ producer: wineSuggestionsTable.producer })
+    .from(wineSuggestionsTable)
+    .where(
+      // Has a producer field and no standalone producer record yet
+      sql`type = 'wine' AND producer IS NOT NULL AND NOT EXISTS (
+            SELECT 1 FROM wine_suggestions p
+            WHERE p.type = 'producer' AND p.display_name = wine_suggestions.producer
+          )`
+    );
+
+  const producerRows: Parameters<typeof upsert>[0] = [];
+  const seen = new Set<string>();
+  for (const w of wines) {
+    if (w.producer && !seen.has(w.producer)) {
+      seen.add(w.producer);
+      producerRows.push({
+        display_name: w.producer,
+        producer: w.producer,
+        wine_name: null,
+        type: "producer",
+        source: "scraped",
+      });
+    }
+  }
+
+  if (producerRows.length === 0) {
+    console.log("[auto-producers] nothing to add — all wine producers already have standalone records");
+    return;
+  }
+
+  const n = await upsert(producerRows);
+  console.log(`[auto-producers] inserted/updated ${n} producer records from wine entries`);
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log("Seeding wine_suggestions...");
   await seedFromWines();
   await seedFromWatchlist();
   await seedCurated();
+  await seedProducersFromWines();
 
   const result = await db.execute<{ count: string }>(
     sql`SELECT COUNT(*)::text as count FROM wine_suggestions`
