@@ -544,6 +544,61 @@ export async function queueAlertsForNewWatchlistItem(
   return matched;
 }
 
+/**
+ * When a user adds a new category watchlist item, check all currently active wines
+ * and queue announcement alerts for any that already match. Mirrors the behaviour of
+ * queueAlertsForNewWatchlistItem so category and item watchlists are consistent.
+ */
+export async function queueAlertsForNewWatchlistCategory(
+  userId: string,
+  category: string,
+): Promise<number> {
+  const matcher = CATEGORY_MATCHERS[category];
+  if (!matcher) return 0;
+
+  const now = new Date();
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const allCycles = await db.select().from(releaseCyclesTable);
+  const activeCycleIds = allCycles
+    .filter((c) => {
+      if (!c.release_opens_at) return false;
+      if ((c.display_order ?? 0) >= 500) return false;
+      return c.release_opens_at >= fourteenDaysAgo;
+    })
+    .map((c) => c.id);
+
+  if (activeCycleIds.length === 0) return 0;
+
+  const wines = await db
+    .select({
+      id: winesTable.id,
+      wine_name: winesTable.wine_name,
+      producer: winesTable.producer,
+      vintage: winesTable.vintage,
+      region: winesTable.region,
+      region_category: winesTable.region_category,
+    })
+    .from(winesTable)
+    .where(inArray(winesTable.release_cycle_id, activeCycleIds));
+
+  let matched = 0;
+  for (const wine of wines) {
+    if (!matcher(wine)) continue;
+    try {
+      await db
+        .insert(alertsTable)
+        .values({ user_id: userId, wine_id: wine.id, wine_name: wine.wine_name })
+        .onConflictDoNothing();
+      matched++;
+      logger.info({ userId, wineId: wine.id, wineName: wine.wine_name, category }, "Alert queued for late category addition");
+    } catch {
+      // ignore duplicate conflicts
+    }
+  }
+
+  return matched;
+}
+
 export async function runScraper(options: { force?: boolean; testMode?: boolean } = {}): Promise<ScraperResult> {
   logger.info({ force: options.force }, "Scraper run started");
   const summaries: ScraperResult["programs"] = [];

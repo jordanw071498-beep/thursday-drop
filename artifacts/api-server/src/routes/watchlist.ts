@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
 import { db, watchlistItemsTable, watchlistCategoriesTable, wineSuggestionsTable, profilesTable } from "@workspace/db";
 import { upsertSuggestion } from "../lib/suggestions.js";
-import { queueAlertsForNewWatchlistItem } from "../lib/scraper.js";
+import { queueAlertsForNewWatchlistItem, queueAlertsForNewWatchlistCategory } from "../lib/scraper.js";
 import {
   GetWatchlistResponse,
   AddToWatchlistBody,
@@ -244,6 +244,22 @@ router.post("/watchlist/categories", async (req, res): Promise<void> => {
     user_id: profile.id,
     category,
   });
+
+  // Queue alerts for any wines in currently active releases that match this category.
+  // Same digest window logic as item-based watchlisting — one bundled email per user.
+  try {
+    const queued = await queueAlertsForNewWatchlistCategory(profile.id, category);
+    if (queued > 0) {
+      const sendAt = new Date(Date.now() + 60 * 60 * 1000); // NOW + 1 hour
+      await db
+        .update(profilesTable)
+        .set({ alert_digest_send_at: sendAt })
+        .where(eq(profilesTable.id, profile.id));
+      req.log.info({ queued, sendAt, category }, "Category alerts queued — digest window set to 1 hour");
+    }
+  } catch (err) {
+    req.log.error({ err }, "Failed to queue alerts for new category");
+  }
 
   res.status(201).json({ success: true });
 });
