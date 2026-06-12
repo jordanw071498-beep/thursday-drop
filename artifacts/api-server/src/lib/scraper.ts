@@ -475,12 +475,15 @@ export async function queueAlertsForNewWatchlistItem(
   item: { wine_name: string; producer: string | null; vintage: string | null; match_type: string },
 ): Promise<number> {
   const now = new Date();
+  // Consider a release "active" if its ordering window opened within the last 14 days.
+  // We use release_opens_at (a real timestamp) rather than closing_date (which contains
+  // text strings like "PREVIEW" or "Available Now Online" that are never parseable as dates).
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const allCycles = await db.select().from(releaseCyclesTable);
   const activeCycleIds = allCycles
     .filter((c) => {
-      if (!c.closing_date) return true;
-      const d = new Date(c.closing_date);
-      return isNaN(d.getTime()) || d >= now;
+      if (!c.release_opens_at) return false; // no timestamp — skip (too old or preview)
+      return c.release_opens_at >= fourteenDaysAgo;
     })
     .map((c) => c.id);
 

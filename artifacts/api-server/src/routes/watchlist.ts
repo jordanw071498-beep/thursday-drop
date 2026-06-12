@@ -133,6 +133,11 @@ router.post("/watchlist", async (req, res): Promise<void> => {
 
   // Queue alerts for any wines already in the current active release that match
   // this new item — so users who add a wine after Thursday's scrape still get notified.
+  //
+  // Quiet-window logic: new accounts (< 10 min old) have their alerts queued silently.
+  // They'll receive ONE bundled digest on the next Thursday cron rather than a separate
+  // email for every watchlist item they add during onboarding.
+  // Returning users adding a new item get the alert sent immediately as before.
   try {
     const queued = await queueAlertsForNewWatchlistItem(profile.id, {
       wine_name: item.wine_name,
@@ -141,8 +146,17 @@ router.post("/watchlist", async (req, res): Promise<void> => {
       match_type: matchType,
     });
     if (queued > 0) {
-      await sendPendingAlerts();
-      req.log.info({ queued }, "Late-addition alerts queued and sent for new watchlist item");
+      const accountAgeMs = Date.now() - new Date(profile.created_at).getTime();
+      const quietWindowMs = 10 * 60 * 1000; // 10 minutes
+      if (accountAgeMs < quietWindowMs) {
+        req.log.info(
+          { queued, accountAgeMs },
+          "New account quiet window — alerts queued, will send on next Thursday cron",
+        );
+      } else {
+        await sendPendingAlerts();
+        req.log.info({ queued }, "Late-addition alerts queued and sent for returning user's new watchlist item");
+      }
     }
   } catch (err) {
     req.log.error({ err }, "Failed to queue alerts for new watchlist item");
