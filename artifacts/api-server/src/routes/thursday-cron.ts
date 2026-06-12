@@ -11,6 +11,36 @@ function checkCronAuth(req: any): boolean {
 }
 
 /**
+ * GET /api/cron/flush-pending-alerts
+ *
+ * Sends announcement digest emails to users whose 1-hour watchlist-add debounce
+ * window has matured. Skips users whose window has not yet expired.
+ *
+ * This endpoint is the production-safe trigger for the digest flusher:
+ *   - Replit/long-running server: also called internally every 15 min via setInterval
+ *   - Vercel serverless: call this via a Vercel Cron Job (e.g. every 30 minutes)
+ *   - Any other scheduler: curl https://<domain>/api/cron/flush-pending-alerts
+ *
+ * Protected by CRON_SECRET env var (same as /api/cron/thursday).
+ */
+router.get("/cron/flush-pending-alerts", async (req, res): Promise<void> => {
+  if (!checkCronAuth(req)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const { sendPendingAlerts } = await import("../lib/email.js");
+    const { sent } = await sendPendingAlerts({ bypassDigestWindow: false });
+    logger.info({ sent }, "flush-pending-alerts cron: done");
+    res.json({ success: true, sent });
+  } catch (err) {
+    logger.error({ err }, "flush-pending-alerts cron: failed");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+/**
  * GET /api/cron/thursday
  *
  * Single combined Thursday job — safe to call multiple times (all steps are idempotent):

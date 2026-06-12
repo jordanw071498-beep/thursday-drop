@@ -1,0 +1,76 @@
+The new 1-hour digest logic sounds good, but I have two important concerns I want addressed before we rely on it in production.
+
+1. Vercel production reliability
+
+You mentioned:
+
+"Alert flush runner runs every 15 minutes inside the server process."
+
+Please confirm this works reliably on Vercel production.
+
+My concern:
+
+* Vercel serverless functions do not keep long-lived processes alive.
+* Background intervals can work in Replit/dev but not necessarily in Vercel.
+* I do not want a situation where users add watchlist items and never receive their 1-hour digest because the process is asleep.
+
+Please explain exactly how this works in production.
+
+If the current implementation is not reliable on Vercel, please replace it with a production-safe solution.
+
+Goal:
+
+* User adds watchlist items
+* Wait ~1 hour
+* Receive one bundled digest
+* Works every time in production
+
+2. Active releases only
+
+This is extremely important.
+
+I want to make sure announcement alerts are only generated from releases that are still active/current on the LCBO Vintages website.
+
+I do NOT want:
+
+* historical releases
+* expired releases
+* programs that have fallen off the Vintages page
+* old offers from previous weeks/months
+
+to generate new watchlist alert emails.
+
+The recent fix using release_opens_at and the 14-day window sounds better, but I want a full audit.
+
+Please verify:
+
+* New watchlist additions only match against active/current Vintages releases.
+* Historical releases cannot trigger new alert emails.
+* Programs pushed to display_order 500+ (off the LCBO page) are excluded from new alert generation.
+* Users cannot receive an announcement email for a wine that is no longer an active offer.
+
+Please tell me exactly how "active release" is currently defined in the code.
+
+3. Desired user experience
+
+Example:
+
+User signs up today and adds:
+
+* Château Lafite Rothschild
+* Sassicaia
+* Tignanello
+* Gaja
+
+If there are currently active matching offers:
+
+* Wait approximately 1 hour
+* Send ONE digest email
+* Include all active matching wines
+* No duplicate emails
+* No historical/expired offers
+* No separate email per watchlist item
+
+Then continue normal Thursday announcement + Thursday morning reminder behavior.
+
+Please review the implementation and confirm all of the above is true in production.
