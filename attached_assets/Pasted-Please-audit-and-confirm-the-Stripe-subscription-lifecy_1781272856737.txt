@@ -1,0 +1,48 @@
+Please audit and confirm the Stripe subscription lifecycle.
+
+Context:
+One user accidentally subscribed twice, so I need to cancel/refund one duplicate subscription and make sure they are only charged once next month.
+
+Please verify:
+
+1. Duplicate subscription handling
+
+* Identify the customer/email with two active subscriptions.
+* Confirm which subscription should remain active.
+* Cancel only the duplicate subscription.
+* Refund the duplicate payment if appropriate.
+* Make sure the user remains Pro after one duplicate subscription is cancelled.
+* Make sure `customer.subscription.deleted` does NOT downgrade the user if they still have another active subscription.
+
+2. Monthly renewal behavior
+   Please confirm that if someone subscribes to the monthly Pro plan:
+
+* Stripe creates a recurring monthly subscription, not a one-time payment.
+* Stripe automatically charges them again at the end of each monthly billing period.
+* The recurring amount is the correct monthly amount, around $5/month.
+* The app keeps them Pro while the subscription remains active.
+
+3. Cancellation behavior
+   Please confirm what happens when someone unsubscribes/cancels:
+
+* They should keep Pro access until the end of the paid monthly billing period.
+* They should not be downgraded immediately if they already paid for the month.
+* At the end of the billing period, they should be downgraded from Pro to regular/free.
+* The app should handle Stripe events correctly for this lifecycle.
+
+4. Webhook verification
+   Please verify the webhook handling for:
+
+* `checkout.session.completed`
+* `customer.subscription.created`
+* `customer.subscription.updated`
+* `customer.subscription.deleted`
+
+Especially confirm:
+
+* Pro is granted when a subscription becomes active.
+* Pro remains active during `cancel_at_period_end`.
+* Pro is removed only when the subscription is actually ended or there are no active subscriptions left.
+* A duplicate subscription cancellation does not accidentally remove Pro access.
+
+Please report exactly what the current logic does and fix anything that does not match this expected behavior.

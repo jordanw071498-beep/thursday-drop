@@ -1,3 +1,4 @@
+import React from "react";
 import { useGetAdminStats, useTriggerScrape, useSendAlerts, useSendWeeklyPicks } from "@workspace/api-client-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -203,6 +204,11 @@ export default function Admin() {
   // Delete user state: id → 'idle' | 'confirm' | 'confirm_pro' | 'deleting'
   const [deleteState, setDeleteState] = useState<Record<string, "confirm" | "confirm_pro" | "deleting">>({});
 
+  // Stripe ID editor state: id → { customerId, subscriptionId } | null
+  const [stripeEditId, setStripeEditId] = useState<string | null>(null);
+  const [stripeEditValues, setStripeEditValues] = useState({ customer: "", subscription: "" });
+  const [savingStripeId, setSavingStripeId] = useState(false);
+
   const alerts = alertsData?.alerts ?? [];
   const users = usersData?.users ?? [];
   const morningPending = alerts.filter((a) => !a.morning_alert_sent && a.release_opens_at).length;
@@ -345,6 +351,30 @@ export default function Admin() {
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
     } finally {
       setDeleteState((s) => { const next = { ...s }; delete next[user.id]; return next; });
+    }
+  };
+
+  const handleSaveStripeIds = async (userId: string) => {
+    if (!token) return;
+    setSavingStripeId(true);
+    try {
+      const body: Record<string, string | null> = {};
+      if (stripeEditValues.customer !== "") body.stripe_customer_id = stripeEditValues.customer || null;
+      if (stripeEditValues.subscription !== "") body.stripe_subscription_id = stripeEditValues.subscription || null;
+      const res = await fetch(`/api/admin/users/${userId}/stripe`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "Save failed");
+      toast({ title: "Stripe IDs updated", description: `customer: ${data.user.stripe_customer_id ?? "null"} · sub: ${data.user.stripe_subscription_id ?? "null"}` });
+      setStripeEditId(null);
+      await refetchUsers();
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingStripeId(false);
     }
   };
 
@@ -864,8 +894,10 @@ export default function Admin() {
                     <tbody className="divide-y divide-border">
                       {users.map((user) => {
                         const ds = deleteState[user.id];
+                        const isEditingStripe = stripeEditId === user.id;
                         return (
-                          <tr key={user.id} className={`transition-colors ${ds ? "bg-red-950/20" : "hover:bg-background/30"}`}>
+                          <React.Fragment key={user.id}>
+                          <tr className={`transition-colors ${ds ? "bg-red-950/20" : "hover:bg-background/30"}`}>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 {user.is_admin ? (
@@ -951,7 +983,7 @@ export default function Admin() {
                                   )}
                                 </div>
                               ) : (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 flex-wrap">
                                   <Button
                                     size="sm"
                                     variant={user.is_pro ? "outline" : "default"}
@@ -960,6 +992,25 @@ export default function Admin() {
                                     className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
                                   >
                                     {togglingId === user.id ? "..." : user.is_pro ? "Remove Pro" : "Grant Pro"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      if (isEditingStripe) {
+                                        setStripeEditId(null);
+                                      } else {
+                                        setStripeEditId(user.id);
+                                        setStripeEditValues({
+                                          customer: user.stripe_customer_id ?? "",
+                                          subscription: user.stripe_subscription_id ?? "",
+                                        });
+                                      }
+                                    }}
+                                    className="rounded-none text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                                    title="Edit Stripe IDs"
+                                  >
+                                    Stripe
                                   </Button>
                                   {user.id !== profile?.id && (
                                     <Button
@@ -976,6 +1027,50 @@ export default function Admin() {
                               )}
                             </td>
                           </tr>
+                          {isEditingStripe && (
+                            <tr className="bg-card/60 border-t-0">
+                              <td colSpan={7} className="px-6 py-4">
+                                <div className="flex items-end gap-3 flex-wrap">
+                                  <div className="flex flex-col gap-1 flex-1 min-w-48">
+                                    <label className="text-xs uppercase tracking-widest text-muted-foreground">Stripe Customer ID</label>
+                                    <Input
+                                      value={stripeEditValues.customer}
+                                      onChange={(e) => setStripeEditValues((v) => ({ ...v, customer: e.target.value }))}
+                                      placeholder="cus_..."
+                                      className="rounded-none h-8 text-xs font-mono"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1 flex-1 min-w-48">
+                                    <label className="text-xs uppercase tracking-widest text-muted-foreground">Stripe Subscription ID</label>
+                                    <Input
+                                      value={stripeEditValues.subscription}
+                                      onChange={(e) => setStripeEditValues((v) => ({ ...v, subscription: e.target.value }))}
+                                      placeholder="sub_..."
+                                      className="rounded-none h-8 text-xs font-mono"
+                                    />
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    disabled={savingStripeId}
+                                    onClick={() => handleSaveStripeIds(user.id)}
+                                    className="rounded-none text-xs tracking-widest uppercase h-8 px-4 shrink-0"
+                                  >
+                                    {savingStripeId ? "Saving…" : "Save"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setStripeEditId(null)}
+                                    className="rounded-none text-xs tracking-widest uppercase h-8 px-4 shrink-0"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">Leave a field blank to skip updating it. Set to empty to clear (NULL).</p>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>

@@ -293,6 +293,53 @@ router.get("/admin/users", async (req, res): Promise<void> => {
   });
 });
 
+router.patch("/admin/users/:id/stripe", async (req, res): Promise<void> => {
+  if (!(await requireAdmin(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const targetId = req.params.id;
+  const { stripe_customer_id, stripe_subscription_id } = req.body ?? {};
+
+  if (stripe_customer_id !== undefined && typeof stripe_customer_id !== "string" && stripe_customer_id !== null) {
+    res.status(400).json({ error: "stripe_customer_id must be a string or null" });
+    return;
+  }
+  if (stripe_subscription_id !== undefined && typeof stripe_subscription_id !== "string" && stripe_subscription_id !== null) {
+    res.status(400).json({ error: "stripe_subscription_id must be a string or null" });
+    return;
+  }
+
+  const updateData: Partial<typeof profilesTable.$inferInsert> = {};
+  if (stripe_customer_id !== undefined) (updateData as any).stripe_customer_id = stripe_customer_id || null;
+  if (stripe_subscription_id !== undefined) (updateData as any).stripe_subscription_id = stripe_subscription_id || null;
+
+  if (Object.keys(updateData).length === 0) {
+    res.status(400).json({ error: "Provide at least one of stripe_customer_id or stripe_subscription_id" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(profilesTable)
+    .set(updateData)
+    .where(eq(profilesTable.id, targetId))
+    .returning({
+      id: profilesTable.id,
+      email: profilesTable.email,
+      stripe_customer_id: profilesTable.stripe_customer_id,
+      stripe_subscription_id: profilesTable.stripe_subscription_id,
+    });
+
+  if (!updated) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  logger.info({ targetId, updateData }, "Admin updated Stripe IDs for user");
+  res.json({ success: true, user: updated });
+});
+
 router.post("/admin/users/:id/toggle-pro", async (req, res): Promise<void> => {
   if (!(await requireAdmin(req))) {
     res.status(401).json({ error: "Unauthorized" });

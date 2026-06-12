@@ -178,9 +178,41 @@ export class WebhookHandlers {
         return;
       }
 
+      // Before downgrading, check whether the customer still has other active
+      // subscriptions (e.g. a duplicate was cancelled but the real one remains).
+      // Only remove Pro if zero active subscriptions remain.
+      try {
+        const stripe = await getUncachableStripeClient();
+        const remaining = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "active",
+          limit: 5,
+        });
+        const otherActive = remaining.data.filter((s: any) => s.id !== subscriptionId);
+
+        if (otherActive.length > 0) {
+          const survivingId = otherActive[0].id as string;
+          await db
+            .update(profilesTable)
+            .set({ stripe_subscription_id: survivingId })
+            .where(eq(profilesTable.stripe_customer_id, customerId));
+          logger.info(
+            { customerId, cancelledId: subscriptionId, survivingId },
+            "customer.subscription.deleted: customer retains other active subscriptions — keeping Pro, updated stripe_subscription_id to surviving sub"
+          );
+          return;
+        }
+      } catch (err) {
+        logger.error(
+          { err, customerId, subscriptionId },
+          "customer.subscription.deleted: failed to check remaining subscriptions — proceeding with downgrade"
+        );
+        // Fall through: safe to downgrade if we cannot confirm a surviving sub
+      }
+
       const [updated] = await db
         .update(profilesTable)
-        .set({ is_pro: false })
+        .set({ is_pro: false, stripe_subscription_id: null })
         .where(
           or(
             eq(profilesTable.stripe_customer_id, customerId),
