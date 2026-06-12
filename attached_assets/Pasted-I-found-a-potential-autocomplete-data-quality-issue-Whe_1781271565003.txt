@@ -1,0 +1,99 @@
+I found a potential autocomplete/data-quality issue.
+
+When I type "Macallan" as a producer, I don't see expected results.
+
+Please audit the entire `wine_suggestions` system and verify that producers and wine names are being stored and indexed separately.
+
+Examples:
+
+Producer:
+
+* Antinori
+* Gaja
+* Macallan
+* Springbank
+* Château Lafite Rothschild
+* Fontodi
+
+Wine:
+
+* Tignanello
+* Solaia
+* Sorì San Lorenzo
+* Sassicaia
+* Flaccianello della Pieve
+* Macallan 18 Sherry Oak
+
+My concern:
+Some entries may have been imported only as wine names and not producers, or vice versa.
+
+Please audit:
+
+1. All suggestion records
+
+* Count of producer suggestions
+* Count of wine suggestions
+* Count of spirits suggestions
+
+2. Producer extraction quality
+   For example:
+
+* Antinori → producer
+* Tignanello → wine
+* Gaja → producer
+* Sorì San Lorenzo → wine
+* Macallan → producer
+* Macallan 18 Sherry Oak → wine/spirit
+* Springbank → producer
+* Springbank 15 → wine/spirit
+
+3. Search behavior
+   Typing:
+
+* ant
+* gaja
+* maca
+* spring
+* font
+* lafite
+
+should immediately surface producer matches.
+
+4. Missing producer generation
+   If a wine exists:
+
+* Antinori Tignanello
+* Antinori Solaia
+* Antinori Guado al Tasso
+
+but there is no producer record for Antinori, automatically generate one.
+
+Likewise:
+
+* Gaja wines → generate Gaja producer
+* Macallan expressions → generate Macallan producer
+* Springbank expressions → generate Springbank producer
+
+5. Data cleanup
+   Please identify:
+
+* producer records stored as wine records
+* wine records stored as producer records
+* duplicates
+* malformed/truncated entries
+
+Examples:
+
+* "Fattoria Le" style truncations
+* punctuation/accent inconsistencies
+* producer names embedded inside wine names without standalone producer entries
+
+Goal:
+When a user types a producer name, producer suggestions should always appear even if all we originally imported were wine labels.
+
+Please audit the current corpus and tell me:
+
+* how many producer records exist
+* how many wine records exist
+* what fixes were applied
+* whether Macallan was missing because of bad data or search logic.

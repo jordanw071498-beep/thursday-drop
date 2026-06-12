@@ -14,6 +14,9 @@ export const profilesTable = pgTable("profiles", {
   alerts_enabled: boolean("alerts_enabled").notNull().default(true),
   unsubscribe_token: text("unsubscribe_token"),
   created_at: timestamp("created_at").notNull().defaultNow(),
+  // Watchlist-add digest window — set to NOW()+1h when alerts are queued mid-week.
+  // sendPendingAlerts() skips this user until the timestamp passes (unless bypassed).
+  alert_digest_send_at: timestamp("alert_digest_send_at"),
 });
 
 export const insertProfileSchema = createInsertSchema(profilesTable).omit({ created_at: true });

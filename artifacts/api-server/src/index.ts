@@ -2,6 +2,7 @@ import app from "./app.js";
 import { logger } from "./lib/logger.js";
 import cron from "node-cron";
 import { runScraper } from "./lib/scraper.js";
+import { startAlertFlusher } from "./lib/alertFlusher.js";
 
 const rawPort = process.env["PORT"];
 if (!rawPort) throw new Error("PORT environment variable is required.");
@@ -36,6 +37,7 @@ app.listen(port, (err) => {
   }
   logger.info({ port }, "Server listening");
   logger.info("Cron jobs scheduled: Thursday 9am and 10am Eastern");
+  startAlertFlusher();
 
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey) {

@@ -265,7 +265,18 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
 
 // ─── Announcement Alert (digest — one email per user, all matching wines) ─────
 
-export async function sendPendingAlerts(): Promise<{ sent: number }> {
+/**
+ * Send pending announcement alert digests.
+ *
+ * @param bypassDigestWindow - When true (default), sends to all users with pending alerts
+ *   immediately — used by the Thursday cron, admin panel, and the scraper, which always
+ *   want to deliver right away. When false, skips users whose alert_digest_send_at window
+ *   has not yet matured — used by the background flush runner that fires every 15 minutes
+ *   to send the 1-hour debounced watchlist-add digest.
+ */
+export async function sendPendingAlerts({ bypassDigestWindow = true }: { bypassDigestWindow?: boolean } = {}): Promise<{ sent: number }> {
+  const now = new Date();
+
   const rows = await db
     .select({
       alert: alertsTable,
@@ -296,6 +307,13 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
     const profile = userRows[0].profile;
     if (!profile?.email) continue;
 
+    // Digest window check — skip users whose 1-hour debounce window has not yet matured.
+    // Bypassed by the Thursday cron, admin panel, and scraper (bypassDigestWindow: true).
+    if (!bypassDigestWindow && profile.alert_digest_send_at != null && profile.alert_digest_send_at > now) {
+      logger.debug({ userId, sendAt: profile.alert_digest_send_at }, "Digest window not yet matured — skipping user");
+      continue;
+    }
+
     const alertIds = userRows.map((r) => r.alert.id);
 
     // Mark unsubscribed users done without sending
@@ -304,6 +322,8 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
         .update(alertsTable)
         .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
         .where(inArray(alertsTable.id, alertIds));
+      // Clear the digest window too so it doesn't linger
+      await db.update(profilesTable).set({ alert_digest_send_at: null }).where(eq(profilesTable.id, userId));
       continue;
     }
 
@@ -358,6 +378,9 @@ export async function sendPendingAlerts(): Promise<{ sent: number }> {
         .update(alertsTable)
         .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
         .where(inArray(alertsTable.id, alertIds));
+
+      // Clear the digest window — no longer needed once alerts are sent
+      await db.update(profilesTable).set({ alert_digest_send_at: null }).where(eq(profilesTable.id, userId));
 
       sent++;
       logger.info({ userId, wines: wines.length, email: profile.email }, "Announcement digest sent");

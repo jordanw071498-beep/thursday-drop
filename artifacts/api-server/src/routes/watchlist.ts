@@ -1,9 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm";
-import { db, watchlistItemsTable, watchlistCategoriesTable, wineSuggestionsTable } from "@workspace/db";
+import { db, watchlistItemsTable, watchlistCategoriesTable, wineSuggestionsTable, profilesTable } from "@workspace/db";
 import { upsertSuggestion } from "../lib/suggestions.js";
 import { queueAlertsForNewWatchlistItem } from "../lib/scraper.js";
-import { sendPendingAlerts } from "../lib/email.js";
 import {
   GetWatchlistResponse,
   AddToWatchlistBody,
@@ -131,13 +130,11 @@ router.post("/watchlist", async (req, res): Promise<void> => {
     "watchlist",
   ).catch((err) => req.log.error({ err }, "Failed to upsert watchlist suggestion"));
 
-  // Queue alerts for any wines already in the current active release that match
-  // this new item — so users who add a wine after Thursday's scrape still get notified.
-  //
-  // Quiet-window logic: new accounts (< 10 min old) have their alerts queued silently.
-  // They'll receive ONE bundled digest on the next Thursday cron rather than a separate
-  // email for every watchlist item they add during onboarding.
-  // Returning users adding a new item get the alert sent immediately as before.
+  // Queue alerts for any wines in recently active releases that match this new item.
+  // We do NOT send immediately — instead we set a 1-hour digest window on the profile.
+  // The background alert flusher checks every 15 minutes and sends one bundled digest
+  // once the window matures. Each new addition resets the window, so a user adding 10
+  // wines in a row gets exactly one email with all their matches, not 10 separate ones.
   try {
     const queued = await queueAlertsForNewWatchlistItem(profile.id, {
       wine_name: item.wine_name,
@@ -146,17 +143,12 @@ router.post("/watchlist", async (req, res): Promise<void> => {
       match_type: matchType,
     });
     if (queued > 0) {
-      const accountAgeMs = Date.now() - new Date(profile.created_at).getTime();
-      const quietWindowMs = 10 * 60 * 1000; // 10 minutes
-      if (accountAgeMs < quietWindowMs) {
-        req.log.info(
-          { queued, accountAgeMs },
-          "New account quiet window — alerts queued, will send on next Thursday cron",
-        );
-      } else {
-        await sendPendingAlerts();
-        req.log.info({ queued }, "Late-addition alerts queued and sent for returning user's new watchlist item");
-      }
+      const sendAt = new Date(Date.now() + 60 * 60 * 1000); // NOW + 1 hour
+      await db
+        .update(profilesTable)
+        .set({ alert_digest_send_at: sendAt })
+        .where(eq(profilesTable.id, profile.id));
+      req.log.info({ queued, sendAt }, "Watchlist alerts queued — digest window set to 1 hour");
     }
   } catch (err) {
     req.log.error({ err }, "Failed to queue alerts for new watchlist item");
