@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { trackEvent } from "@/lib/analytics";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -30,6 +31,7 @@ export default function ForgotPassword() {
         return;
       }
 
+      trackEvent("password_reset_requested");
       setSubmitted(true);
     } catch {
       setError("Network error. Please check your connection and try again.");

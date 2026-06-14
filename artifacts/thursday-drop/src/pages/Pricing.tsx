@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Pricing() {
   const { profile } = useAuth();
@@ -22,6 +23,8 @@ export default function Pricing() {
       setLocation("/login");
       return;
     }
+
+    trackEvent("pro_upgrade_started", { plan, source: "pricing_page" });
 
     createCheckout.mutate(
       { data: { plan, user_id: profile.id, email: profile.email || "" } },

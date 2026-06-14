@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { Check, X } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 type Plan = "free" | "monthly";
 
@@ -44,6 +45,7 @@ export default function Signup() {
     }
 
     setLoading(true);
+    trackEvent("signup_started", { plan: selectedPlan });
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -61,6 +63,7 @@ export default function Signup() {
       }
 
       await signIn(data.token, data.profile);
+      trackEvent("signup_completed", { plan: selectedPlan });
 
       if (selectedPlan !== "free") {
         try {
@@ -78,6 +81,7 @@ export default function Signup() {
           });
           if (checkoutRes.ok) {
             const { url } = await checkoutRes.json();
+            trackEvent("pro_upgrade_started", { plan: selectedPlan, source: "signup" });
             window.location.href = url;
             return;
           }

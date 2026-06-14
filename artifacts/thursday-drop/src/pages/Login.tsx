@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -34,6 +35,7 @@ export default function Login() {
       }
 
       signIn(data.token, data.profile);
+      trackEvent("login");
       setLocation("/watchlist");
     } catch {
       setError("Network error. Please check your connection and try again.");

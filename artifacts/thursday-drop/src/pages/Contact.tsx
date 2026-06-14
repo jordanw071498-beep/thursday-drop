@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Contact() {
   const [name, setName] = useState("");
@@ -29,6 +30,7 @@ export default function Contact() {
         throw new Error(data.error || "Failed to send message.");
       }
 
+      trackEvent("contact_form_submitted");
       setSent(true);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");

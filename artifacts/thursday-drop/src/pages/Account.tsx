@@ -5,6 +5,7 @@ import { useGetSubscriptionInfo, useCancelSubscription, useCreateCheckout } from
 import { useLocation, useSearch } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import { Check, AlertTriangle } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Account() {
   const { profile, signOut, refreshProfile } = useAuth();
@@ -59,6 +60,7 @@ export default function Account() {
       setLocation("/login");
       return;
     }
+    trackEvent("pro_upgrade_started", { plan, source: "account_page" });
     createCheckout.mutate(
       { data: { plan, user_id: profile.id, email: profile.email || "" } },
       {
@@ -76,6 +78,7 @@ export default function Account() {
   useEffect(() => {
     const params = new URLSearchParams(search);
     if (params.get("checkout") === "success") {
+      trackEvent("pro_upgrade_completed");
       setShowSuccess(true);
       window.history.replaceState({}, "", "/account");
 

@@ -24,6 +24,16 @@
     <meta name="twitter:description" content="Never miss an LCBO Vintages release. Get a personal alert the moment your favourite wines become available." />
     <meta name="twitter:image" content="https://thursdaydrop.ca/opengraph.jpg" />
 
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NMLRKEVM4K"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      // send_page_view: false — React router fires page_view events for SPA navigation
+      gtag('config', 'G-NMLRKEVM4K', { send_page_view: false });
+    </script>
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

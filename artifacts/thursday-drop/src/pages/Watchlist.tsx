@@ -2,6 +2,7 @@ import { useGetWatchlist, useAddToWatchlist, useRemoveFromWatchlist, getGetWatch
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -360,6 +361,7 @@ export default function Watchlist() {
       { data: { wine_name, vintage: payload_vintage, producer: payload_producer, match_type: mode } },
       {
         onSuccess: () => {
+          trackEvent("watchlist_item_added", { match_type: mode });
           setWineName(""); setVintage(""); setProducer("");
           queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
           const labels: Record<Mode, string> = {
@@ -399,6 +401,7 @@ export default function Watchlist() {
       { data: payload },
       {
         onSuccess: () => {
+          trackEvent("watchlist_item_added", { match_type: matchMode, source: "quick_add" });
           queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
           toast({ title: matchMode === "producer" ? `Tracking ${wine.producer}` : `Tracking ${wine.wine_name}` });
         },
