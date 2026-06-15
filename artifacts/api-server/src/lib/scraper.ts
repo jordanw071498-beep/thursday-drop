@@ -42,6 +42,8 @@ interface ScrapedWine {
 export interface ScraperResult {
   message: string;
   wines_found: number;
+  alerts_matched: number;
+  alerts_suppressed: boolean;
   programs: Array<{
     programId: string;
     label: string;
@@ -644,7 +646,7 @@ export async function queueAlertsForNewWatchlistCategory(
   return matched;
 }
 
-export async function runScraper(options: { force?: boolean; testMode?: boolean } = {}): Promise<ScraperResult> {
+export async function runScraper(options: { force?: boolean; testMode?: boolean; suppressEmails?: boolean } = {}): Promise<ScraperResult> {
   logger.info({ force: options.force }, "Scraper run started");
   const summaries: ScraperResult["programs"] = [];
   let totalWines = 0;
@@ -848,8 +850,10 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
     }
   }
 
-  // Send announcement alerts for all newly matched wines (skip auto-send in test mode)
-  if (totalAlertsMatched > 0 && !options.testMode) {
+  // Send announcement alerts for all newly matched wines.
+  // Skipped in: test mode, or when suppressEmails=true (admin silent re-scrape).
+  const willSendEmails = totalAlertsMatched > 0 && !options.testMode && !options.suppressEmails;
+  if (willSendEmails) {
     try {
       const { sendPendingAlerts } = await import("./email.js");
       const { sent } = await sendPendingAlerts();
@@ -857,12 +861,16 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
     } catch (err) {
       logger.error({ err }, "Failed to send announcement alerts after scrape");
     }
+  } else if (totalAlertsMatched > 0 && options.suppressEmails) {
+    logger.info({ totalAlertsMatched }, "Scrape complete — emails suppressed, alerts held as pending");
   }
 
-  logger.info({ totalWines, programs: programs.length, totalAlertsMatched }, "Scraper run complete");
+  logger.info({ totalWines, programs: programs.length, totalAlertsMatched, suppressEmails: options.suppressEmails ?? false }, "Scraper run complete");
   return {
     message: `Scraped ${programs.length} programs, inserted ${totalWines} wines`,
     wines_found: totalWines,
+    alerts_matched: totalAlertsMatched,
+    alerts_suppressed: options.suppressEmails ?? false,
     programs: summaries,
   };
 }

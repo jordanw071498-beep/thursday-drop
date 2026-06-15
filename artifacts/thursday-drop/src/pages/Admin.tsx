@@ -197,10 +197,16 @@ export default function Admin() {
   // Test Mode state
   const [testMode, setTestMode] = useState(false);
   const [forceMode, setForceMode] = useState(false);
+  // suppressEmails: default ON (safe) — admin must explicitly enable "Send Alerts"
+  const [suppressEmails, setSuppressEmails] = useState(true);
 
   // Confirmation dialog state for Send All Pending
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSendingConfirmed, setIsSendingConfirmed] = useState(false);
+
+  // Confirmation dialog state for Scrape-with-emails
+  const [showScrapeConfirm, setShowScrapeConfirm] = useState(false);
+  const [isScrapePending, setIsScrapePending] = useState(false);
 
   // Delete user state: id → 'idle' | 'confirm' | 'confirm_pro' | 'deleting'
   const [deleteState, setDeleteState] = useState<Record<string, "confirm" | "confirm_pro" | "deleting">>({});
@@ -219,24 +225,42 @@ export default function Admin() {
   const pendingTestAlerts = stats?.pending_test_alerts ?? 0;
   const pendingRealUsers = stats?.pending_real_users ?? 0;
 
-  const handleScrape = () => {
-    // Use the generated hook for scrape but pass testMode/force via body through raw fetch
+  const executeScrape = () => {
+    setIsScrapePending(true);
     fetch("/api/admin/scrape", {
       method: "POST",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ testMode, force: forceMode }),
+      body: JSON.stringify({ testMode, force: forceMode, suppressEmails }),
     })
       .then((r) => r.json())
       .then((data: any) => {
-        const modeLabel = [testMode && "TEST", forceMode && "FORCE"].filter(Boolean).join("+");
-        toast({ title: `Scrape Complete${modeLabel ? ` [${modeLabel}]` : ""}`, description: data?.message ?? "Done." });
+        const modeLabel = [testMode && "TEST", forceMode && "FORCE", suppressEmails && "SILENT"].filter(Boolean).join("+");
+        const alertsNote = suppressEmails && (data?.alerts_matched ?? 0) > 0
+          ? `${data.alerts_matched} alert${data.alerts_matched !== 1 ? "s" : ""} held — use "Send All Pending" to deliver.`
+          : !suppressEmails && (data?.alerts_matched ?? 0) > 0
+            ? `${data.alerts_matched} alert${data.alerts_matched !== 1 ? "s" : ""} sent to users.`
+            : undefined;
+        toast({
+          title: `Scrape Complete${modeLabel ? ` [${modeLabel}]` : ""}`,
+          description: [data?.message, alertsNote].filter(Boolean).join(" "),
+        });
         refetchStats();
         refetchAlerts();
       })
-      .catch(() => toast({ title: "Scrape failed", variant: "destructive" }));
+      .catch(() => toast({ title: "Scrape failed", variant: "destructive" }))
+      .finally(() => { setIsScrapePending(false); setShowScrapeConfirm(false); });
+  };
+
+  const handleScrape = () => {
+    if (!suppressEmails && !testMode) {
+      // Will send real emails — require explicit confirmation first
+      setShowScrapeConfirm(true);
+      return;
+    }
+    executeScrape();
   };
 
   const handleAlerts = () => {
@@ -562,6 +586,15 @@ export default function Admin() {
                 </div>
               )}
 
+              {!suppressEmails && !testMode && (
+                <div className="flex items-start gap-2 border border-emerald-700/60 bg-emerald-950/20 p-4 text-emerald-400">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p className="text-sm">
+                    <strong>Send Alerts is ON.</strong> New watchlist matches will be emailed to real users immediately after this scrape. You'll see a confirmation before it runs.
+                  </p>
+                </div>
+              )}
+
               {/* Force Re-scrape toggle */}
               <div className={`flex items-center gap-3 border p-4 ${forceMode ? "border-red-700/60 bg-red-950/20" : "border-border bg-card"}`}>
                 <RefreshCw className={`h-5 w-5 ${forceMode ? "text-red-400" : "text-muted-foreground"}`} />
@@ -584,11 +617,73 @@ export default function Admin() {
                 </button>
               </div>
 
+              {/* Send Alerts toggle */}
+              <div className={`flex items-center gap-3 border p-4 ${!suppressEmails && !testMode ? "border-emerald-700/60 bg-emerald-950/20" : "border-border bg-card"}`}>
+                <Activity className={`h-5 w-5 ${!suppressEmails && !testMode ? "text-emerald-400" : "text-muted-foreground"}`} />
+                <div className="flex-1">
+                  <p className={`text-sm font-medium tracking-widest uppercase ${!suppressEmails && !testMode ? "text-emerald-400" : "text-muted-foreground"}`}>
+                    Send Alerts {!suppressEmails && !testMode ? "ON" : "OFF"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {testMode
+                      ? "No emails sent — test mode overrides this setting"
+                      : suppressEmails
+                        ? "Silent mode — new matches are held as pending, no emails sent"
+                        : "New watchlist matches will be emailed to real users after the scrape"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSuppressEmails((v) => !v)}
+                  disabled={testMode}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${!suppressEmails && !testMode ? "bg-emerald-700" : "bg-muted"}`}
+                  aria-label="Toggle Send Alerts"
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${!suppressEmails && !testMode ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+              </div>
+
+              {/* Scrape confirmation modal */}
+              {showScrapeConfirm && (
+                <div className="border border-emerald-700/60 bg-emerald-950/30 p-4 space-y-3">
+                  <div className="flex items-start gap-2 text-emerald-400">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <p className="text-sm font-medium">
+                      This scrape will email real users when new watchlist matches are found. Are you sure?
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={executeScrape}
+                      disabled={isScrapePending}
+                      className="rounded-none tracking-widest uppercase bg-emerald-700 hover:bg-emerald-600 text-white text-xs h-7 px-4"
+                    >
+                      {isScrapePending ? "Scraping..." : "Yes, Scrape & Send"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowScrapeConfirm(false)}
+                      disabled={isScrapePending}
+                      className="rounded-none tracking-widest uppercase text-xs h-7 px-4"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <Button
                 onClick={handleScrape}
+                disabled={isScrapePending || showScrapeConfirm}
                 className={`rounded-none font-bold tracking-widest uppercase ${forceMode ? "bg-red-800 hover:bg-red-700 text-white" : testMode ? "bg-amber-700 hover:bg-amber-600 text-white" : ""}`}
               >
-                {forceMode && testMode ? "Force Re-scrape (Test Mode)" : forceMode ? "Force Re-scrape Now" : testMode ? "Run Scraper (Test Mode)" : "Run Scraper Now"}
+                {isScrapePending
+                  ? "Scraping…"
+                  : forceMode && testMode ? "Force Re-scrape (Test Mode)"
+                  : forceMode ? "Force Re-scrape Now"
+                  : testMode ? "Run Scraper (Test Mode)"
+                  : "Run Scraper Now"}
               </Button>
             </div>
 

@@ -135,11 +135,13 @@ router.post("/admin/scrape", async (req, res): Promise<void> => {
 
   const testMode = req.body?.testMode === true;
   const force = req.body?.force === true;
+  const suppressEmails = req.body?.suppressEmails !== false; // default true (safe)
 
   try {
     const scraper = await import("../lib/scraper.js");
-    const result = await scraper.runScraper({ testMode, force });
-    res.json(TriggerScrapeResponse.parse({ success: true, message: result.message, wines_found: result.wines_found }));
+    const result = await scraper.runScraper({ testMode, force, suppressEmails });
+    const parsed = TriggerScrapeResponse.parse({ success: true, message: result.message, wines_found: result.wines_found });
+    res.json({ ...parsed, alerts_matched: result.alerts_matched, alerts_suppressed: result.alerts_suppressed });
   } catch (err) {
     logger.error({ err }, "Scraper error");
     res.json(TriggerScrapeResponse.parse({ success: false, message: "Scraper failed. Check logs.", wines_found: 0 }));
