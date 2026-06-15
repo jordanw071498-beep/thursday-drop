@@ -110,6 +110,7 @@ interface WineEntry {
   buy_url: string | null;
   program_label: string | null;
   release_opens_at: Date | null;
+  bottle_size?: string | null;
 }
 
 // ─── Announcement Digest ──────────────────────────────────────────────────────
@@ -150,6 +151,7 @@ function buildAnnouncementDigestHtml(wines: WineEntry[], unsubscribeToken?: stri
     // Secondary details shown below the CTA (below the fold on mobile)
     const secondaryRows = [
       tableRow("Vintage", wine.vintage),
+      tableRow("Format", wine.bottle_size ?? null),
       tableRow("Region", wine.region),
       wine.qty_available ? tableRow("Qty available", `${wine.qty_available} bottles`) : "",
     ].filter(Boolean).join("");
@@ -210,6 +212,7 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
 
     const secondaryRows = [
       tableRow("Vintage", wine.vintage),
+      tableRow("Format", wine.bottle_size ?? null),
       tableRow("Region", wine.region),
       wine.qty_available ? tableRow("Qty available", `${wine.qty_available} bottles`) : "",
     ].filter(Boolean).join("");
@@ -357,6 +360,7 @@ export async function sendPendingAlerts({ bypassDigestWindow = true }: { bypassD
       qty_available: r.wine.qty_available,
       closing_date: r.wine.closing_date,
       buy_url: r.wine.buy_url,
+      bottle_size: r.wine.bottle_size,
       program_label: r.cycle?.program_label ?? null,
       release_opens_at: r.cycle?.release_opens_at ?? null,
     }));
@@ -478,6 +482,7 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
       qty_available: r.wine.qty_available,
       closing_date: r.wine.closing_date,
       buy_url: r.wine.buy_url,
+      bottle_size: r.wine.bottle_size,
       program_label: r.cycle?.program_label ?? null,
       release_opens_at: r.cycle?.release_opens_at ?? null,
     }));
@@ -720,6 +725,7 @@ export async function sendMorningReminderPreview(
     qty_available: wine.qty_available,
     closing_date: wine.closing_date,
     buy_url: wine.buy_url,
+    bottle_size: wine.bottle_size,
     program_label: cycle.program_label,
     release_opens_at: cycle.release_opens_at,
   };

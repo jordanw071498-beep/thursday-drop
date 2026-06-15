@@ -5,10 +5,11 @@ import { db, archiveWinesTable, archiveReleaseCyclesTable } from "@workspace/db"
 const router: IRouter = Router();
 
 /**
- * GET /api/archive/history?wine_name=&vintage=
+ * GET /api/archive/history?wine_name=&vintage=&bottle_size=
  *
  * Returns historical archive appearances for a specific wine name (case-insensitive
- * exact match). Optionally filtered by vintage.
+ * exact match). Optionally filtered by vintage and/or bottle_size to avoid mixing
+ * price histories across formats (375 mL, 750 mL, 1.5 L, etc.).
  *
  * Only returns data — never affects alerts, watchlist, or live releases.
  */
@@ -18,7 +19,8 @@ router.get("/archive/history", async (req, res): Promise<void> => {
     res.status(400).json({ error: "wine_name is required" });
     return;
   }
-  const vintage = req.query.vintage ? String(req.query.vintage).trim() : null;
+  const vintage     = req.query.vintage     ? String(req.query.vintage).trim()     : null;
+  const bottle_size = req.query.bottle_size ? String(req.query.bottle_size).trim() : null;
 
   const conditions = [
     sql`LOWER(${archiveWinesTable.wine_name}) = LOWER(${wine_name})`,
@@ -26,12 +28,16 @@ router.get("/archive/history", async (req, res): Promise<void> => {
   if (vintage) {
     conditions.push(eq(archiveWinesTable.vintage, vintage));
   }
+  if (bottle_size) {
+    conditions.push(eq(archiveWinesTable.bottle_size, bottle_size));
+  }
 
   const rows = await db
     .select({
       release_month: archiveReleaseCyclesTable.release_month,
-      price: archiveWinesTable.price,
-      vintage: archiveWinesTable.vintage,
+      price:         archiveWinesTable.price,
+      vintage:       archiveWinesTable.vintage,
+      bottle_size:   archiveWinesTable.bottle_size,
     })
     .from(archiveWinesTable)
     .innerJoin(
@@ -52,7 +58,11 @@ router.get("/archive/history", async (req, res): Promise<void> => {
     ...new Set(rows.map((r) => r.vintage).filter((v): v is string => v != null && v !== "")),
   ];
 
-  res.json({ count, last_seen_month, prices, vintages });
+  const bottle_sizes = [
+    ...new Set(rows.map((r) => r.bottle_size).filter((s): s is string => s != null && s !== "")),
+  ];
+
+  res.json({ count, last_seen_month, prices, vintages, bottle_sizes });
 });
 
 export default router;

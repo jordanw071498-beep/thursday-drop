@@ -125,6 +125,7 @@ export const GetLatestReleaseResponse = zod.object({
   "qty_available": zod.number().nullish(),
   "closing_date": zod.string().nullish(),
   "buy_url": zod.string().nullish(),
+  "bottle_size": zod.string().nullish(),
   "sold_out": zod.boolean()
 }))
 })
@@ -163,6 +164,7 @@ export const GetReleaseResponse = zod.object({
   "qty_available": zod.number().nullish(),
   "closing_date": zod.string().nullish(),
   "buy_url": zod.string().nullish(),
+  "bottle_size": zod.string().nullish(),
   "sold_out": zod.boolean()
 }))
 })
@@ -194,6 +196,7 @@ export const ListWinesResponseItem = zod.object({
   "qty_available": zod.number().nullish(),
   "closing_date": zod.string().nullish(),
   "buy_url": zod.string().nullish(),
+  "bottle_size": zod.string().nullish(),
   "sold_out": zod.boolean()
 })
 export const ListWinesResponse = zod.array(ListWinesResponseItem)
@@ -221,6 +224,7 @@ export const GetWineResponse = zod.object({
   "qty_available": zod.number().nullish(),
   "closing_date": zod.string().nullish(),
   "buy_url": zod.string().nullish(),
+  "bottle_size": zod.string().nullish(),
   "sold_out": zod.boolean()
 })
 
@@ -404,14 +408,16 @@ export const SendWeeklyPicksResponse = zod.object({
  */
 export const GetArchiveHistoryQueryParams = zod.object({
   "wine_name": zod.coerce.string(),
-  "vintage": zod.coerce.string().nullish()
+  "vintage": zod.coerce.string().nullish(),
+  "bottle_size": zod.coerce.string().nullish()
 })
 
 export const GetArchiveHistoryResponse = zod.object({
   "count": zod.number(),
   "last_seen_month": zod.string().nullish(),
   "prices": zod.array(zod.number()),
-  "vintages": zod.array(zod.string())
+  "vintages": zod.array(zod.string()),
+  "bottle_sizes": zod.array(zod.string()).optional()
 })
 
 

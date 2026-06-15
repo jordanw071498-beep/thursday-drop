@@ -32,5 +32,7 @@ export interface Wine {
   closing_date?: string | null;
   /** @nullable */
   buy_url?: string | null;
+  /** @nullable */
+  bottle_size?: string | null;
   sold_out: boolean;
 }

@@ -31,6 +31,34 @@ const CDX_BULK_URL =
 
 // ── Pure parsing helpers (isolated copies — do not import from scraper.ts) ──
 
+/**
+ * Normalize a raw volume string to a canonical bottle size label.
+ * Returns null if no recognizable volume is found — never defaults to 750 mL.
+ * (Isolated copy — do not import from scraper.ts)
+ */
+function normalizeBottleSize(raw: string): string | null {
+  const m = raw.match(/(\d+(?:[.,]\d+)?)\s*(ml|mL|L|l)\b/i);
+  if (!m) return null;
+  const val = parseFloat(m[1].replace(",", "."));
+  const unit = m[2].toLowerCase();
+  const ml = unit === "l" ? val * 1000 : val;
+  if (ml === 187)   return "187 mL";
+  if (ml === 200)   return "200 mL";
+  if (ml === 250)   return "250 mL";
+  if (ml === 375)   return "375 mL";
+  if (ml === 500)   return "500 mL";
+  if (ml === 750)   return "750 mL";
+  if (ml === 1000)  return "1 L";
+  if (ml === 1500)  return "1.5 L";
+  if (ml === 2000)  return "2 L";
+  if (ml === 3000)  return "3 L";
+  if (ml === 6000)  return "6 L";
+  if (ml === 9000)  return "9 L";
+  if (ml === 12000) return "12 L";
+  if (unit === "l") return `${val} L`;
+  return `${val} mL`;
+}
+
 function extractVintage(name: string): string | null {
   const m = name.match(/\b(19[5-9]\d|20[0-3]\d)\b/);
   return m ? m[0] : null;
@@ -216,6 +244,7 @@ export interface ArchiveDryRunWine {
   score: number | null;
   score_source: string | null;
   price: number | null;
+  bottle_size: string | null;
 }
 
 /**
@@ -238,6 +267,12 @@ function parseArchiveWines($: cheerio.CheerioAPI): ArchiveDryRunWine[] {
     if (!wineName) return;
 
     const lcboNumber = $row.find("span[id*='lblItemNumber']").text().trim() || null;
+    // tds[1] is the Volume column on the LCBO Vintages order page layout:
+    // td[0]=product, td[1]=volume, td[2]=region, td[3]=score, td[last]=price
+    const volRaw = tds.length > 1 ? $(tds[1]).text().trim() : "";
+    const bottle_size =
+      normalizeBottleSize(volRaw) ??
+      normalizeBottleSize($row.find("span[id*='lblVolume'], .colVolume").first().text().trim());
     const region = $(tds[2]).text().trim() || null;
     const scoreRaw = $(tds[3]).text().trim();
     const { score, score_source } = parseScore(scoreRaw);
@@ -258,6 +293,7 @@ function parseArchiveWines($: cheerio.CheerioAPI): ArchiveDryRunWine[] {
       score,
       score_source,
       price,
+      bottle_size: bottle_size ?? null,
     });
   });
 
@@ -705,6 +741,7 @@ export async function importArchiveRange(from: number, to: number): Promise<void
             score: w.score !== null ? String(w.score) : null,
             score_source: w.score_source ?? null,
             price: w.price !== null ? String(w.price) : null,
+            bottle_size: w.bottle_size ?? null,
             source_url: snapshot.snapshotUrl,
           })),
         );

@@ -835,6 +835,7 @@ router.get("/admin/archive/search", async (req, res): Promise<void> => {
       score:         archiveWinesTable.score,
       score_source:  archiveWinesTable.score_source,
       lcbo_number:   archiveWinesTable.lcbo_number,
+      bottle_size:   archiveWinesTable.bottle_size,
       program_id:    archiveReleaseCyclesTable.program_id,
       program_label: archiveReleaseCyclesTable.program_label,
       program_type:  archiveReleaseCyclesTable.program_type,

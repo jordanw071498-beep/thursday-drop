@@ -153,7 +153,10 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
                     {showReleaseLabel && wine.release_cycle_id && ` • Release #${wine.release_cycle_id}`}
                   </span>
                   {wine.sold_out && <span className="text-xs text-destructive uppercase tracking-wider mt-1">Sold Out</span>}
-                  {showHistory && <WineHistoryBadge wineName={wine.wine_name} />}
+                  {wine.bottle_size && wine.bottle_size !== "750 mL" && (
+                    <span className="text-xs font-mono text-primary/80 mt-0.5">{wine.bottle_size}</span>
+                  )}
+                  {showHistory && <WineHistoryBadge wineName={wine.wine_name} bottleSize={wine.bottle_size} />}
                 </div>
               </TableCell>
               <TableCell>{wine.producer || '—'}</TableCell>
@@ -233,8 +236,11 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
   );
 }
 
-function WineHistoryBadge({ wineName }: { wineName: string }) {
-  const { data } = useGetArchiveHistory({ wine_name: wineName });
+function WineHistoryBadge({ wineName, bottleSize }: { wineName: string; bottleSize?: string | null }) {
+  const { data } = useGetArchiveHistory({
+    wine_name: wineName,
+    ...(bottleSize ? { bottle_size: bottleSize } : {}),
+  });
 
   if (!data || data.count === 0) return null;
 
@@ -248,6 +254,9 @@ function WineHistoryBadge({ wineName }: { wineName: string }) {
   const uniquePrices = [...new Set(data.prices.map((p) => Math.round(p)))].sort((a, b) => a - b);
   const priceStr = uniquePrices.length > 0 ? uniquePrices.map((p) => `$${p}`).join(", ") : null;
 
+  // Highlight non-standard formats — 750 mL is assumed and unremarkable
+  const nonStandardSizes = (data.bottle_sizes ?? []).filter((s) => s !== "750 mL");
+
   return (
     <div className="flex flex-wrap items-center gap-1.5 mt-1">
       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60">
@@ -259,6 +268,9 @@ function WineHistoryBadge({ wineName }: { wineName: string }) {
       )}
       {priceStr && (
         <span className="text-xs text-muted-foreground/50">· {priceStr}</span>
+      )}
+      {nonStandardSizes.length > 0 && (
+        <span className="text-xs text-primary/70 font-mono">· {nonStandardSizes.join(", ")}</span>
       )}
     </div>
   );

@@ -28,6 +28,7 @@ export const archiveWinesTable = pgTable("archive_wines", {
   score: numeric("score", { precision: 5, scale: 1 }),
   score_source: text("score_source"),
   price: numeric("price", { precision: 10, scale: 2 }),
+  bottle_size: text("bottle_size"),
   source_url: text("source_url"),
   imported_at: timestamp("imported_at").notNull().defaultNow(),
 }, (table) => [

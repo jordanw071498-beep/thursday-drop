@@ -1378,6 +1378,7 @@ interface ArchiveSearchResult {
   score: string | null;
   score_source: string | null;
   lcbo_number: string | null;
+  bottle_size: string | null;
   program_id: string;
   program_label: string;
   program_type: string;

@@ -20,6 +20,7 @@ export const winesTable = pgTable("wines", {
   closing_date: text("closing_date"),
   buy_url: text("buy_url"),
   sold_out: boolean("sold_out").notNull().default(false),
+  bottle_size: text("bottle_size"),
 });
 
 export const insertWineSchema = createInsertSchema(winesTable).omit({ id: true });

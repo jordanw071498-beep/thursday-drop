@@ -11,4 +11,5 @@ export interface WineHistory {
   last_seen_month?: string | null;
   prices: number[];
   vintages: string[];
+  bottle_sizes?: string[];
 }

@@ -9,4 +9,5 @@
 export type GetArchiveHistoryParams = {
 wine_name: string;
 vintage?: string | null;
+bottle_size?: string | null;
 };

@@ -520,6 +520,12 @@ paths:
           schema:
             type: string
             nullable: true
+        - name: bottle_size
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
       responses:
         "200":
           description: Archive history for the wine
@@ -632,6 +638,8 @@ components:
         closing_date:
           type: ["string", "null"]
         buy_url:
+          type: ["string", "null"]
+        bottle_size:
           type: ["string", "null"]
         sold_out:
           type: boolean
@@ -854,6 +862,10 @@ components:
           items:
             type: number
         vintages:
+          type: array
+          items:
+            type: string
+        bottle_sizes:
           type: array
           items:
             type: string
