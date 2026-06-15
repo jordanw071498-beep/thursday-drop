@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
 import { getAuthProfile } from "../lib/auth.js";
+import { dryRunArchiveScrape, importArchiveRange, getImportJobState } from "../lib/archiveScraper.js";
 
 const router: IRouter = Router();
 
@@ -800,4 +801,107 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
   });
 });
 
+// ── GET /admin/archive/dry-run ────────────────────────────────────────────────
+// Scans a range of historical Vintages program IDs and returns a preview of
+// what would be imported into archive_release_cycles / archive_wines.
+// WRITES NOTHING to any table. Safe to run at any time.
+router.get("/admin/archive/dry-run", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req);
+  if (!admin) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const fromRaw = parseInt(String(req.query.from ?? ""), 10);
+  const toRaw   = parseInt(String(req.query.to   ?? ""), 10);
+
+  if (isNaN(fromRaw) || isNaN(toRaw)) {
+    res.status(400).json({ error: "Query params 'from' and 'to' must be integers (e.g. ?from=900&to=920)" });
+    return;
+  }
+  if (fromRaw < 1 || toRaw < fromRaw) {
+    res.status(400).json({ error: "'from' must be ≥ 1 and 'to' must be ≥ 'from'" });
+    return;
+  }
+  if (toRaw - fromRaw > 199) {
+    res.status(400).json({ error: "Range cannot exceed 200 program IDs per dry-run" });
+    return;
+  }
+
+  logger.info({ from: fromRaw, to: toRaw, adminEmail: admin.email }, "Archive dry-run started");
+
+  try {
+    const result = await dryRunArchiveScrape(fromRaw, toRaw);
+    logger.info(
+      { scanned: result.scanned, wouldImport: result.would_import, skipped: result.skipped.length },
+      "Archive dry-run complete",
+    );
+    res.json(result);
+  } catch (err: any) {
+    logger.error({ err }, "Archive dry-run failed");
+    res.status(500).json({ error: "Dry-run failed", detail: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/archive/import?from=N&to=M
+ *
+ * Starts a background archive import for program IDs [from, to].
+ * Returns immediately — poll /api/admin/archive/status for progress.
+ * Only one import job can run at a time.
+ * Writes ONLY to archive_release_cycles and archive_wines — never touches live tables.
+ */
+router.post("/admin/archive/import", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req);
+  if (!admin) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const fromRaw = parseInt(String(req.query.from), 10);
+  const toRaw   = parseInt(String(req.query.to), 10);
+  if (isNaN(fromRaw) || isNaN(toRaw) || fromRaw < 1 || toRaw < fromRaw) {
+    res.status(400).json({ error: "'from' must be ≥ 1 and 'to' must be ≥ 'from'" });
+    return;
+  }
+  if (toRaw - fromRaw > 999) {
+    res.status(400).json({ error: "Range cannot exceed 1000 program IDs per import job" });
+    return;
+  }
+
+  const currentJob = getImportJobState();
+  if (currentJob.status === "running") {
+    res.status(409).json({
+      error: "An import job is already running",
+      current_job: currentJob,
+    });
+    return;
+  }
+
+  logger.info({ from: fromRaw, to: toRaw, adminEmail: admin.email }, "Archive import: job enqueued");
+
+  // Start the import in the background — do NOT await
+  importArchiveRange(fromRaw, toRaw).catch((err) => {
+    logger.error({ err }, "Archive import: unhandled error in background job");
+  });
+
+  res.json({
+    status: "started",
+    from: fromRaw,
+    to: toRaw,
+    message: `Archive import started for program IDs ${fromRaw}–${toRaw}. Poll /api/admin/archive/status for progress.`,
+  });
+});
+
+/**
+ * GET /api/admin/archive/status
+ * Returns the current (or last completed) import job state.
+ */
+router.get("/admin/archive/status", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req);
+  if (!admin) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  res.json(getImportJobState());
+});
+
 export default router;
+

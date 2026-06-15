@@ -7,3 +7,4 @@ export * from "./email_subscribers";
 export * from "./alerts";
 export * from "./password_reset_tokens";
 export * from "./wine_suggestions";
+export * from "./archive";
