@@ -149,7 +149,7 @@ function ProgramSection({ program, search }: { program: ProgramWithWines; search
             {filtered.length} of {program.wines.length} wine{program.wines.length !== 1 ? "s" : ""} match your search
           </p>
         )}
-        <WineTable wines={filtered} showWatchButton />
+        <WineTable wines={filtered} showWatchButton showHistory />
       </AccordionContent>
     </AccordionItem>
   );

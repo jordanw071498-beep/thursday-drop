@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc, and } from "drizzle-orm";
+import { eq, sql, desc, and, ilike } from "drizzle-orm";
 import {
   db,
   profilesTable,
@@ -10,6 +10,8 @@ import {
   watchlistCategoriesTable,
   emailSubscribersTable,
   passwordResetTokensTable,
+  archiveWinesTable,
+  archiveReleaseCyclesTable,
 } from "@workspace/db";
 import {
   GetAdminStatsResponse,
@@ -799,6 +801,60 @@ router.delete("/admin/users/:id", async (req, res): Promise<void> => {
       watchlist_categories: Number(deletedWatchlistCats?.count ?? 0),
     },
   });
+});
+
+// ── GET /admin/archive/search ─────────────────────────────────────────────────
+// Searches all archived wine appearances by name, producer, and/or vintage.
+// Read-only — never affects live tables, alerts, or watchlist.
+router.get("/admin/archive/search", async (req, res): Promise<void> => {
+  const admin = await requireAdmin(req);
+  if (!admin) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const q        = req.query.q        ? String(req.query.q).trim()        : null;
+  const producer = req.query.producer ? String(req.query.producer).trim() : null;
+  const vintage  = req.query.vintage  ? String(req.query.vintage).trim()  : null;
+
+  if (!q && !producer && !vintage) {
+    res.status(400).json({ error: "Provide at least one of: q (wine name), producer, vintage" });
+    return;
+  }
+
+  const conditions = [];
+  if (q)        conditions.push(ilike(archiveWinesTable.wine_name, `%${q}%`));
+  if (producer) conditions.push(ilike(archiveWinesTable.producer, `%${producer}%`));
+  if (vintage)  conditions.push(eq(archiveWinesTable.vintage, vintage));
+
+  const results = await db
+    .select({
+      id:            archiveWinesTable.id,
+      wine_name:     archiveWinesTable.wine_name,
+      vintage:       archiveWinesTable.vintage,
+      producer:      archiveWinesTable.producer,
+      region:        archiveWinesTable.region,
+      price:         archiveWinesTable.price,
+      score:         archiveWinesTable.score,
+      score_source:  archiveWinesTable.score_source,
+      lcbo_number:   archiveWinesTable.lcbo_number,
+      program_id:    archiveReleaseCyclesTable.program_id,
+      program_label: archiveReleaseCyclesTable.program_label,
+      program_type:  archiveReleaseCyclesTable.program_type,
+      release_month: archiveReleaseCyclesTable.release_month,
+      closing_date:  archiveReleaseCyclesTable.closing_date,
+      source_url:    archiveReleaseCyclesTable.source_url,
+    })
+    .from(archiveWinesTable)
+    .innerJoin(
+      archiveReleaseCyclesTable,
+      eq(archiveWinesTable.archive_cycle_id, archiveReleaseCyclesTable.id),
+    )
+    .where(and(...conditions))
+    .orderBy(
+      desc(archiveReleaseCyclesTable.release_month),
+      desc(sql`${archiveReleaseCyclesTable.program_id}::int`),
+    )
+    .limit(200);
+
+  res.json({ results, total: results.length });
 });
 
 // ── GET /admin/archive/dry-run ────────────────────────────────────────────────

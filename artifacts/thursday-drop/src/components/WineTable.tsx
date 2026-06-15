@@ -1,4 +1,4 @@
-import { Wine } from "@workspace/api-client-react";
+import { Wine, useGetArchiveHistory } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/lib/AuthContext";
 import { useAddToWatchlist } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Wine as WineIcon, User, Calendar } from "lucide-react";
+import { Plus, Wine as WineIcon, User, Calendar, Clock3 } from "lucide-react";
 import { useState } from "react";
 
 interface WineTableProps {
@@ -14,9 +14,10 @@ interface WineTableProps {
   showWatchButton?: boolean;
   showReleaseLabel?: boolean;
   showSoldOut?: boolean;
+  showHistory?: boolean;
 }
 
-export function WineTable({ wines, showWatchButton = false, showReleaseLabel = false, showSoldOut = true }: WineTableProps) {
+export function WineTable({ wines, showWatchButton = false, showReleaseLabel = false, showSoldOut = true, showHistory = false }: WineTableProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const addToWatchlist = useAddToWatchlist();
@@ -152,6 +153,7 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
                     {showReleaseLabel && wine.release_cycle_id && ` • Release #${wine.release_cycle_id}`}
                   </span>
                   {wine.sold_out && <span className="text-xs text-destructive uppercase tracking-wider mt-1">Sold Out</span>}
+                  {showHistory && <WineHistoryBadge wineName={wine.wine_name} />}
                 </div>
               </TableCell>
               <TableCell>{wine.producer || '—'}</TableCell>
@@ -227,6 +229,37 @@ export function WineTable({ wines, showWatchButton = false, showReleaseLabel = f
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function WineHistoryBadge({ wineName }: { wineName: string }) {
+  const { data } = useGetArchiveHistory({ wine_name: wineName });
+
+  if (!data || data.count === 0) return null;
+
+  const lastSeen = data.last_seen_month
+    ? (() => {
+        const [y, m] = data.last_seen_month.split("-");
+        return new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-CA", { month: "short", year: "numeric" });
+      })()
+    : null;
+
+  const uniquePrices = [...new Set(data.prices.map((p) => Math.round(p)))].sort((a, b) => a - b);
+  const priceStr = uniquePrices.length > 0 ? uniquePrices.map((p) => `$${p}`).join(", ") : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60">
+        <Clock3 className="h-3 w-3 shrink-0" />
+        Seen {data.count}× on Vintages
+      </span>
+      {lastSeen && (
+        <span className="text-xs text-muted-foreground/50">· Last: {lastSeen}</span>
+      )}
+      {priceStr && (
+        <span className="text-xs text-muted-foreground/50">· {priceStr}</span>
+      )}
     </div>
   );
 }

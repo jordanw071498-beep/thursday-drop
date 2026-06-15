@@ -439,6 +439,7 @@ export default function Admin() {
               { value: "watchlists", label: "Watchlists" },
               { value: "stripe", label: "Stripe Health" },
               { value: "newsletter", label: "Newsletter" },
+              { value: "archive-search", label: "Archive Search" },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -1291,6 +1292,11 @@ export default function Admin() {
             </div>
           </TabsContent>
 
+          {/* Archive Search */}
+          <TabsContent value="archive-search">
+            <ArchiveSearchTab token={token} />
+          </TabsContent>
+
           {/* Newsletter */}
           <TabsContent value="newsletter">
             <div className="bg-card border border-border p-8 space-y-6">
@@ -1358,6 +1364,198 @@ function StatCard({
       <p className={`font-mono text-3xl font-bold ${highlight ? "text-primary" : muted ? "text-muted-foreground" : "text-foreground"}`}>
         {value ?? "—"}
       </p>
+    </div>
+  );
+}
+
+interface ArchiveSearchResult {
+  id: number;
+  wine_name: string;
+  vintage: string | null;
+  producer: string | null;
+  region: string | null;
+  price: string | null;
+  score: string | null;
+  score_source: string | null;
+  lcbo_number: string | null;
+  program_id: string;
+  program_label: string;
+  program_type: string;
+  release_month: string | null;
+  closing_date: string | null;
+  source_url: string;
+}
+
+function ArchiveSearchTab({ token }: { token: string | null }) {
+  const [q, setQ] = useState("");
+  const [producer, setProducer] = useState("");
+  const [vintage, setVintage] = useState("");
+  const [submitted, setSubmitted] = useState<{ q: string; producer: string; vintage: string } | null>(null);
+
+  const { data, isFetching, error } = useQuery<{ results: ArchiveSearchResult[]; total: number }>({
+    queryKey: ["/admin/archive/search", submitted],
+    queryFn: async () => {
+      if (!submitted) throw new Error("not ready");
+      const params = new URLSearchParams();
+      if (submitted.q)        params.set("q", submitted.q);
+      if (submitted.producer) params.set("producer", submitted.producer);
+      if (submitted.vintage)  params.set("vintage", submitted.vintage);
+      const res = await fetch(`/api/admin/archive/search?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error ?? String(res.status)); }
+      return res.json();
+    },
+    enabled: !!submitted && !!token,
+    staleTime: 60_000,
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!q && !producer && !vintage) return;
+    setSubmitted({ q: q.trim(), producer: producer.trim(), vintage: vintage.trim() });
+  };
+
+  const PROGRAM_TYPE_LABEL: Record<string, string> = {
+    classics_collection: "Classics Collection",
+    special_offers: "Special Offer",
+    bordeaux_futures: "Bordeaux Futures",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-card border border-border p-8">
+        <h2 className="font-serif text-2xl mb-1">Archive Search</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Search all {" "}
+          <span className="text-foreground font-medium">1,855 archived wines</span>
+          {" "} across 146 historical Vintages programs (Aug 2019–Aug 2025). Read-only — does not affect alerts or watchlist.
+        </p>
+        <form onSubmit={handleSearch} className="flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1 flex-1 min-w-44">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Wine Name</label>
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="e.g. Sassicaia, Masseto, Penfolds"
+              className="rounded-none bg-background"
+            />
+          </div>
+          <div className="flex flex-col gap-1 flex-1 min-w-36">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Producer</label>
+            <Input
+              value={producer}
+              onChange={(e) => setProducer(e.target.value)}
+              placeholder="e.g. Antinori"
+              className="rounded-none bg-background"
+            />
+          </div>
+          <div className="flex flex-col gap-1 w-24">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Vintage</label>
+            <Input
+              value={vintage}
+              onChange={(e) => setVintage(e.target.value)}
+              placeholder="2019"
+              className="rounded-none bg-background"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={isFetching || (!q && !producer && !vintage)}
+            className="rounded-none tracking-widest uppercase font-bold shrink-0"
+          >
+            {isFetching ? "Searching…" : "Search"}
+          </Button>
+        </form>
+      </div>
+
+      {error && (
+        <div className="border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-400">
+          {(error as Error).message}
+        </div>
+      )}
+
+      {data && (
+        <div className="bg-card border border-border">
+          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {data.total === 0
+                ? "No results found."
+                : <><span className="text-foreground font-medium">{data.total}</span> appearance{data.total !== 1 ? "s" : ""} found{data.total === 200 ? " (capped at 200)" : ""}</>}
+            </p>
+          </div>
+          {data.results.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs uppercase tracking-widest text-muted-foreground">
+                    <th className="text-left px-6 py-3">Wine</th>
+                    <th className="text-left px-4 py-3">Producer</th>
+                    <th className="text-left px-4 py-3">Region</th>
+                    <th className="text-right px-4 py-3">Score</th>
+                    <th className="text-right px-4 py-3">Price</th>
+                    <th className="text-left px-4 py-3">Program</th>
+                    <th className="text-left px-4 py-3">Release</th>
+                    <th className="text-left px-4 py-3">Source</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {data.results.map((r) => (
+                    <tr key={r.id} className="hover:bg-background/30 transition-colors">
+                      <td className="px-6 py-3">
+                        <div className="font-medium text-foreground">
+                          {r.wine_name}
+                          {r.vintage && (
+                            <span className="ml-2 text-primary font-mono text-xs font-semibold">{r.vintage}</span>
+                          )}
+                        </div>
+                        {r.lcbo_number && (
+                          <div className="text-xs text-muted-foreground">LCBO: {r.lcbo_number}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{r.producer ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{r.region ?? "—"}</td>
+                      <td className="px-4 py-3 text-right">
+                        {r.score ? (
+                          <span className="font-mono text-xs font-bold">
+                            {r.score}
+                            {r.score_source && <span className="text-muted-foreground font-normal ml-1">{r.score_source}</span>}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs">
+                        {r.price ? `$${parseFloat(r.price).toFixed(2)}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs max-w-56">
+                        <div className="text-muted-foreground uppercase tracking-widest text-[10px] mb-0.5">
+                          {PROGRAM_TYPE_LABEL[r.program_type] ?? r.program_type}
+                        </div>
+                        <div className="text-foreground line-clamp-2 leading-snug">{r.program_label}</div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-nowrap">
+                        {r.release_month ?? "—"}
+                        {r.closing_date && (
+                          <div className="text-[10px] text-muted-foreground/60">Closed: {r.closing_date}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <a
+                          href={r.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary underline-offset-2 hover:underline"
+                        >
+                          Wayback
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

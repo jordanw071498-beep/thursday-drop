@@ -25,6 +25,8 @@ tags:
     description: Stripe payment operations
   - name: admin
     description: Admin operations
+  - name: archive
+    description: Archive history operations
 paths:
   /auth/signup:
     post:
@@ -501,6 +503,33 @@ paths:
         "401":
           description: Unauthorized
 
+  /archive/history:
+    get:
+      operationId: getArchiveHistory
+      tags: [archive]
+      summary: Get historical archive appearances for a wine
+      parameters:
+        - name: wine_name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: vintage
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+      responses:
+        "200":
+          description: Archive history for the wine
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WineHistory"
+        "400":
+          description: Missing wine_name parameter
+
 components:
   schemas:
     AuthCredentials:
@@ -811,3 +840,21 @@ components:
         body:
           type: string
       required: [subject, body]
+
+    WineHistory:
+      type: object
+      properties:
+        count:
+          type: integer
+        last_seen_month:
+          type: string
+          nullable: true
+        prices:
+          type: array
+          items:
+            type: number
+        vintages:
+          type: array
+          items:
+            type: string
+      required: [count, prices, vintages]

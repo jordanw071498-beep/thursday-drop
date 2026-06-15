@@ -29,6 +29,7 @@ import type {
   CheckoutResult,
   CreateProfileInput,
   EmailSubscribeInput,
+  GetArchiveHistoryParams,
   GetWatchlistSuggestionsParams,
   HealthStatus,
   ListWinesParams,
@@ -41,6 +42,7 @@ import type {
   WatchlistItemInput,
   WeeklyPicksInput,
   Wine,
+  WineHistory,
   WineStats,
   WineSuggestion
 } from './api.schemas';
@@ -1988,4 +1990,88 @@ export const useSendWeeklyPicks = <TError = ErrorType<void>,
       > => {
       return useMutation(getSendWeeklyPicksMutationOptions(options));
     }
+
+export const getGetArchiveHistoryUrl = (params: GetArchiveHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/archive/history?${stringifiedParams}` : `/api/archive/history`
+}
+
+/**
+ * @summary Get historical archive appearances for a wine
+ */
+export const getArchiveHistory = async (params: GetArchiveHistoryParams, options?: RequestInit): Promise<WineHistory> => {
+
+  return customFetch<WineHistory>(getGetArchiveHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetArchiveHistoryQueryKey = (params?: GetArchiveHistoryParams,) => {
+    return [
+    `/api/archive/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetArchiveHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getArchiveHistory>>, TError = ErrorType<void>>(params: GetArchiveHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetArchiveHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getArchiveHistory>>> = ({ signal }) => getArchiveHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getArchiveHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetArchiveHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getArchiveHistory>>>
+export type GetArchiveHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get historical archive appearances for a wine
+ */
+
+export function useGetArchiveHistory<TData = Awaited<ReturnType<typeof getArchiveHistory>>, TError = ErrorType<void>>(
+ params: GetArchiveHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getArchiveHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetArchiveHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 

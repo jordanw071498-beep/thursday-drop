@@ -230,6 +230,13 @@ export interface WeeklyPicksInput {
   body: string;
 }
 
+export interface WineHistory {
+  count: number;
+  last_seen_month?: string | null;
+  prices: number[];
+  vintages: string[];
+}
+
 export type ListWinesParams = {
 release_cycle_id?: number;
 region?: string;
@@ -259,4 +266,9 @@ export const GetWatchlistSuggestionsType = {
   producer: 'producer',
   all: 'all',
 } as const;
+
+export type GetArchiveHistoryParams = {
+wine_name: string;
+vintage?: string | null;
+};
 

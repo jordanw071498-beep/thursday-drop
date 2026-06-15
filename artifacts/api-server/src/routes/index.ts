@@ -12,6 +12,7 @@ import scrapeRouter from "./scrape";
 import morningAlertsRouter from "./morning-alerts";
 import thursdayCronRouter from "./thursday-cron";
 import accountRouter from "./account";
+import archiveRouter from "./archive";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(scrapeRouter);
 router.use(adminRouter);
 router.use(morningAlertsRouter);
 router.use(thursdayCronRouter);
+router.use(archiveRouter);
 
 export default router;

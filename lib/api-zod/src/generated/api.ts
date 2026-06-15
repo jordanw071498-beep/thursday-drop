@@ -399,3 +399,19 @@ export const SendWeeklyPicksResponse = zod.object({
 })
 
 
+/**
+ * @summary Get historical archive appearances for a wine
+ */
+export const GetArchiveHistoryQueryParams = zod.object({
+  "wine_name": zod.coerce.string(),
+  "vintage": zod.coerce.string().nullish()
+})
+
+export const GetArchiveHistoryResponse = zod.object({
+  "count": zod.number(),
+  "last_seen_month": zod.string().nullish(),
+  "prices": zod.array(zod.number()),
+  "vintages": zod.array(zod.string())
+})
+
+
