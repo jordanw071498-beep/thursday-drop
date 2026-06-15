@@ -267,11 +267,18 @@ function parseArchiveWines($: cheerio.CheerioAPI): ArchiveDryRunWine[] {
     if (!wineName) return;
 
     const lcboNumber = $row.find("span[id*='lblItemNumber']").text().trim() || null;
-    // tds[1] is the Volume column on the LCBO Vintages order page layout:
-    // td[0]=product, td[1]=volume, td[2]=region, td[3]=score, td[last]=price
-    const volRaw = tds.length > 1 ? $(tds[1]).text().trim() : "";
+    // Volume extraction: the LCBO Vintages table layout is:
+    //   td[0]=product (name, LCBO#, tooltip), td[1]=LCBO item#, td[2]=region,
+    //   td[3]=score, td[4]=bare volume number ("750"), td[5]=price
+    // The most reliable source is the TooltipWording span inside td[0], whose text
+    // contains the full "750 mL" string with unit (e.g. "14% Alc./Vol. 750 mL").
+    // Fallback: td[4] contains a bare integer ("750") so we append " mL" before parsing.
+    const tooltipText = $row.find("span[id*='TooltipWording']").text();
+    const volCellRaw = tds.length > 4 ? $(tds[4]).text().trim() : "";
+    const volCellWithUnit = volCellRaw.match(/^\d+$/) ? `${volCellRaw} mL` : volCellRaw;
     const bottle_size =
-      normalizeBottleSize(volRaw) ??
+      normalizeBottleSize(tooltipText) ??
+      normalizeBottleSize(volCellWithUnit) ??
       normalizeBottleSize($row.find("span[id*='lblVolume'], .colVolume").first().text().trim());
     const region = $(tds[2]).text().trim() || null;
     const scoreRaw = $(tds[3]).text().trim();

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { db, releaseCyclesTable, winesTable, watchlistItemsTable, watchlistCategoriesTable, alertsTable } from "@workspace/db";
 import { upsertSuggestions } from "./suggestions.js";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { logger } from "./logger.js";
 
 const BASE = "https://www.vintagesshoponline.com/vintages";
@@ -242,11 +242,18 @@ function parseWines($: cheerio.CheerioAPI, programId: string, closingDate: strin
     if (!wineName) return;
 
     const lcboNumber = $row.find("span[id*='lblItemNumber']").text().trim() || null;
-    // tds[1] is the Volume column on the LCBO Vintages order page layout:
-    // td[0]=product, td[1]=volume, td[2]=region, td[3]=score, td[last]=price
-    const volRaw = tds.length > 1 ? $(tds[1]).text().trim() : "";
+    // Volume extraction: the LCBO Vintages table layout is:
+    //   td[0]=product (name, LCBO#, tooltip), td[1]=LCBO item#, td[2]=region,
+    //   td[3]=score, td[4]=bare volume number ("750"), td[5]=price
+    // The most reliable source is the TooltipWording span inside td[0], whose text
+    // contains the full "750 mL" string with unit (e.g. "14% Alc./Vol. 750 mL").
+    // Fallback: td[4] contains a bare integer ("750") so we append " mL" before parsing.
+    const tooltipText = $row.find("span[id*='TooltipWording']").text();
+    const volCellRaw = tds.length > 4 ? $(tds[4]).text().trim() : "";
+    const volCellWithUnit = volCellRaw.match(/^\d+$/) ? `${volCellRaw} mL` : volCellRaw;
     const bottle_size =
-      normalizeBottleSize(volRaw) ??
+      normalizeBottleSize(tooltipText) ??
+      normalizeBottleSize(volCellWithUnit) ??
       normalizeBottleSize($row.find("span[id*='lblVolume'], .colVolume").first().text().trim());
     const region = $(tds[2]).text().trim() || null;
     const scoreRaw = $(tds[3]).text().trim();
@@ -399,6 +406,7 @@ async function discoverPrograms(): Promise<ProgramInfo[]> {
 type InsertedWine = {
   id: number;
   wine_name: string;
+  wine_key?: string | null;
   producer: string | null;
   vintage: string | null;
   region: string | null;
@@ -652,6 +660,12 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
       .where(eq(releaseCyclesTable.program_id, info.programId))
       .limit(1);
 
+    // Tracks (user_id, wine_key) pairs that already received a sent announcement alert
+    // for wines in this cycle. Populated before force-deletion so we can silence
+    // duplicate alerts after re-import — prevents users being emailed twice for the
+    // same wine just because force mode gave it a new DB id.
+    let alreadyNotified: Array<{ userId: string; wineKey: string }> = [];
+
     if (existing.length > 0) {
       if (!options.force) {
         // Always refresh display_order and status for existing programs so the
@@ -679,6 +693,20 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
         continue;
       }
       logger.info({ programId: info.programId, cycleId: existing[0].id }, "Force mode: deleting existing data");
+
+      const notifiedRaw = await db
+        .select({ userId: alertsTable.user_id, wineKey: winesTable.wine_key })
+        .from(alertsTable)
+        .innerJoin(winesTable, eq(alertsTable.wine_id, winesTable.id))
+        .where(and(
+          eq(winesTable.release_cycle_id, existing[0].id),
+          eq(alertsTable.announcement_alert_sent, true),
+        ));
+      alreadyNotified = notifiedRaw.filter((r): r is { userId: string; wineKey: string } => r.wineKey !== null);
+      if (alreadyNotified.length > 0) {
+        logger.info({ programId: info.programId, pairs: alreadyNotified.length }, "Force mode: recorded already-notified (user, wine) pairs");
+      }
+
       await db.delete(winesTable).where(eq(winesTable.release_cycle_id, existing[0].id));
       await db.delete(releaseCyclesTable).where(eq(releaseCyclesTable.id, existing[0].id));
     }
@@ -732,7 +760,7 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
           sold_out: false,
         })
         .returning();
-      inserted.push({ id: row.id, wine_name: row.wine_name, producer: row.producer, vintage: row.vintage, region: row.region, region_category: row.region_category });
+      inserted.push({ id: row.id, wine_name: row.wine_name, wine_key: row.wine_key, producer: row.producer, vintage: row.vintage, region: row.region, region_category: row.region_category });
     }
 
     // Populate suggestions table from newly scraped wines — fire-and-forget so
@@ -753,6 +781,27 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean 
     const alertsQueued = await runMatchingEngine(inserted, options.testMode ?? false);
     totalAlertsMatched += alertsQueued;
     logger.info({ programId: info.programId, alertsQueued }, "Matching engine done");
+
+    // Silence duplicate alerts: for any (user, wine) that was already announced
+    // before the force re-scrape, mark the newly-created alert as already-sent so
+    // the alert flusher never picks it up and sends a second email.
+    if (alreadyNotified.length > 0) {
+      let silenced = 0;
+      for (const wine of inserted) {
+        for (const pair of alreadyNotified) {
+          if (wine.wine_key && pair.wineKey === wine.wine_key) {
+            await db
+              .update(alertsTable)
+              .set({ sent: true, sent_at: new Date(), announcement_alert_sent: true })
+              .where(and(eq(alertsTable.wine_id, wine.id), eq(alertsTable.user_id, pair.userId)));
+            silenced++;
+          }
+        }
+      }
+      if (silenced > 0) {
+        logger.info({ programId: info.programId, silenced }, "Force mode: silenced duplicate alerts for already-notified (user, wine) pairs");
+      }
+    }
 
     totalWines += wines.length;
     summaries.push({
