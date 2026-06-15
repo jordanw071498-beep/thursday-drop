@@ -134,10 +134,11 @@ router.post("/admin/scrape", async (req, res): Promise<void> => {
   }
 
   const testMode = req.body?.testMode === true;
+  const force = req.body?.force === true;
 
   try {
     const scraper = await import("../lib/scraper.js");
-    const result = await scraper.runScraper({ testMode });
+    const result = await scraper.runScraper({ testMode, force });
     res.json(TriggerScrapeResponse.parse({ success: true, message: result.message, wines_found: result.wines_found }));
   } catch (err) {
     logger.error({ err }, "Scraper error");

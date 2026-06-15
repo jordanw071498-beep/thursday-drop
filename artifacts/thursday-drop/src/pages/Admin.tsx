@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { AlertTriangle, CheckCircle, Clock, FlaskConical, ShieldCheck, User, List, Database, Trash2, Wifi, WifiOff, Activity } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, FlaskConical, RefreshCw, ShieldCheck, User, List, Database, Trash2, Wifi, WifiOff, Activity } from "lucide-react";
 
 interface AlertRow {
   id: number;
@@ -196,6 +196,7 @@ export default function Admin() {
 
   // Test Mode state
   const [testMode, setTestMode] = useState(false);
+  const [forceMode, setForceMode] = useState(false);
 
   // Confirmation dialog state for Send All Pending
   const [showConfirm, setShowConfirm] = useState(false);
@@ -219,19 +220,19 @@ export default function Admin() {
   const pendingRealUsers = stats?.pending_real_users ?? 0;
 
   const handleScrape = () => {
-    // Use the generated hook for scrape but pass testMode via body through raw fetch
+    // Use the generated hook for scrape but pass testMode/force via body through raw fetch
     fetch("/api/admin/scrape", {
       method: "POST",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ testMode }),
+      body: JSON.stringify({ testMode, force: forceMode }),
     })
       .then((r) => r.json())
       .then((data: any) => {
-        const modeLabel = testMode ? " [TEST MODE]" : "";
-        toast({ title: `Scrape Complete${modeLabel}`, description: data?.message ?? "Done." });
+        const modeLabel = [testMode && "TEST", forceMode && "FORCE"].filter(Boolean).join("+");
+        toast({ title: `Scrape Complete${modeLabel ? ` [${modeLabel}]` : ""}`, description: data?.message ?? "Done." });
         refetchStats();
         refetchAlerts();
       })
@@ -552,11 +553,42 @@ export default function Admin() {
                 </div>
               )}
 
+              {forceMode && (
+                <div className="flex items-start gap-2 border border-red-700/60 bg-red-950/30 p-4 text-red-400">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <p className="text-sm">
+                    <strong>Force Re-scrape is ON.</strong> All currently-scraped programs will be deleted and re-imported from LCBO. Use this to pick up wines added after the initial scrape (e.g. when a release grows from 20 → 80 wines). Existing watchlist alerts are preserved.
+                  </p>
+                </div>
+              )}
+
+              {/* Force Re-scrape toggle */}
+              <div className={`flex items-center gap-3 border p-4 ${forceMode ? "border-red-700/60 bg-red-950/20" : "border-border bg-card"}`}>
+                <RefreshCw className={`h-5 w-5 ${forceMode ? "text-red-400" : "text-muted-foreground"}`} />
+                <div className="flex-1">
+                  <p className={`text-sm font-medium tracking-widest uppercase ${forceMode ? "text-red-400" : "text-muted-foreground"}`}>
+                    Force Re-scrape {forceMode ? "ON" : "OFF"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {forceMode
+                      ? "Deletes and re-imports all programs — picks up wines added after initial scrape"
+                      : "Only imports new programs; skips programs already in the database"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setForceMode((v) => !v)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${forceMode ? "bg-red-700" : "bg-muted"}`}
+                  aria-label="Toggle Force Re-scrape"
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${forceMode ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+              </div>
+
               <Button
                 onClick={handleScrape}
-                className={`rounded-none font-bold tracking-widest uppercase ${testMode ? "bg-amber-700 hover:bg-amber-600 text-white" : ""}`}
+                className={`rounded-none font-bold tracking-widest uppercase ${forceMode ? "bg-red-800 hover:bg-red-700 text-white" : testMode ? "bg-amber-700 hover:bg-amber-600 text-white" : ""}`}
               >
-                {testMode ? "Run Scraper (Test Mode)" : "Run Scraper Now"}
+                {forceMode && testMode ? "Force Re-scrape (Test Mode)" : forceMode ? "Force Re-scrape Now" : testMode ? "Run Scraper (Test Mode)" : "Run Scraper Now"}
               </Button>
             </div>
 
