@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { db, releaseCyclesTable, winesTable, watchlistItemsTable, watchlistCategoriesTable, alertsTable } from "@workspace/db";
+import { db, releaseCyclesTable, winesTable, watchlistItemsTable, watchlistCategoriesTable, alertsTable, historicalReleaseObservationsTable } from "@workspace/db";
 import { upsertSuggestions } from "./suggestions.js";
 import { eq, inArray, and } from "drizzle-orm";
 import { logger } from "./logger.js";
@@ -763,6 +763,52 @@ export async function runScraper(options: { force?: boolean; testMode?: boolean;
         })
         .returning();
       inserted.push({ id: row.id, wine_name: row.wine_name, wine_key: row.wine_key, producer: row.producer, vintage: row.vintage, region: row.region, region_category: row.region_category });
+    }
+
+    // Append-only historical snapshot — one row per (wine_key, vintage, bottle_size, program_id).
+    // Deduplicate within this batch first: ON CONFLICT DO NOTHING still errors if the same
+    // unique key appears twice in a single VALUES list.
+    const obsSourceUrl = `${BASE}/Public/OrderProgramProducts.aspx?programId=${info.programId}&lang=en`;
+    const releaseMonth = `${releaseOpensAt.getUTCFullYear()}-${String(releaseOpensAt.getUTCMonth() + 1).padStart(2, "0")}`;
+    const releaseOpensAtText = releaseOpensAt.toISOString();
+
+    const seenObsKeys = new Set<string>();
+    const obsRows: (typeof historicalReleaseObservationsTable.$inferInsert)[] = [];
+    for (const w of wines) {
+      const obsKey = `${w.wine_key}||${w.vintage ?? ""}||${w.bottle_size ?? ""}||${info.programId}`;
+      if (seenObsKeys.has(obsKey)) continue;
+      seenObsKeys.add(obsKey);
+      obsRows.push({
+        wine_name:        w.wine_name,
+        wine_key:         w.wine_key,
+        producer:         w.producer,
+        vintage:          w.vintage,
+        bottle_size:      w.bottle_size,
+        lcbo_number:      w.lcbo_number,
+        price:            w.price,
+        score:            w.score,
+        score_source:     w.score_source,
+        program_id:       info.programId,
+        program_type:     info.type,
+        program_label:    info.label,
+        release_opens_at: releaseOpensAtText,
+        release_month:    releaseMonth,
+        closing_date:     info.closingDate,
+        source_url:       obsSourceUrl,
+        // confidence and source_method use schema defaults ('high', 'live_scrape')
+      });
+    }
+
+    if (obsRows.length > 0) {
+      try {
+        await db
+          .insert(historicalReleaseObservationsTable)
+          .values(obsRows)
+          .onConflictDoNothing();
+        logger.info({ programId: info.programId, count: obsRows.length }, "Historical release observations recorded");
+      } catch (err) {
+        logger.error({ err, programId: info.programId }, "Failed to record historical release observations");
+      }
     }
 
     // Populate suggestions table from newly scraped wines — fire-and-forget so
