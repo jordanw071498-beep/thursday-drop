@@ -1,0 +1,103 @@
+Before building the historical Vintages archive, I want to be very careful that it does not break or contaminate the existing alert infrastructure.
+
+Please only proceed if this can be done safely and accurately.
+
+Goal:
+Build a historical archive of Vintages releases so subscribers can see historical release data.
+
+Example:
+If Sassicaia appears today, a user could eventually see:
+
+* Sassicaia 2020 was released in a prior Vintages offer at $X
+* Sassicaia 2021 was released in another prior offer at $Y
+* Sassicaia 2020 may have appeared more than once, at different prices
+
+Important:
+The same wine and vintage can appear multiple times in different releases at different prices. We need to preserve each historical occurrence separately.
+
+For example:
+
+* Sassicaia 2020 released in 2021 at $100
+* Sassicaia 2020 released again in 2023 at $120
+
+Those should be separate archive records, not overwritten or merged.
+
+Safety requirements:
+
+1. Do not affect active alerts
+   Historical imports must never:
+
+* trigger watchlist matching
+* create alert rows
+* send announcement emails
+* send morning reminder emails
+* affect current release ordering
+* affect current release tabs
+* affect users’ active watchlists
+
+2. Separate archive model if needed
+   If the existing `wines` / `release_cycles` schema is too tightly connected to alerts, please create separate archive tables instead, such as:
+
+* archived_release_cycles
+* archived_wines
+* archived_wine_occurrences
+
+I would rather have a clean separate archive than risk polluting the live alert system.
+
+3. Preserve occurrence-level data
+   For every historical listing, store:
+
+* program_id
+* program label/name
+* program type
+* release month/year if known
+* wine name
+* producer if known
+* vintage
+* price
+* score if available
+* region/country if available
+* LCBO/product number if available
+* source URL
+* scraped_at/imported_at
+* confidence level if any field is inferred
+
+4. No fake or inferred data unless clearly marked
+   Do not create fake dates, fake prices, fake scores, or fake release names.
+
+If a field cannot be confidently extracted, leave it null.
+
+If release date/month is inferred from program sequence or Wayback metadata, mark it clearly as inferred.
+
+5. Only import confident data
+   If the script can confidently pull “March 2025 Cellar Collection” or “April 2024 Special Offer” with wine names and prices, import it.
+
+If the data is ambiguous, incomplete, or likely wrong, skip it or mark it as low confidence for admin review.
+
+6. Historical same-wine matching
+   The archive should support queries like:
+
+* show all historical appearances of Sassicaia
+* show all historical appearances of Sassicaia 2020
+* show historical price changes for the same wine/vintage
+* show when a producer last appeared on Vintages
+
+This means duplicate-looking wines should not be collapsed if they appeared in different programs or dates.
+
+7. Build safely first
+   Please start with a limited dry run:
+
+* scan a small historical range, maybe 20–50 program IDs
+* do not write to production at first
+* report what would be imported
+* show sample parsed records
+* confirm field accuracy
+
+Only after the dry run looks accurate should we import into production.
+
+8. Admin-only archive import
+   If implemented, make it admin-only and clearly separate from normal scraper/cron jobs.
+
+Please propose the safest database design first before writing production data.
+
+The archive is valuable only if it is accurate. I would rather import fewer highly reliable historical records than thousands of questionable ones.
