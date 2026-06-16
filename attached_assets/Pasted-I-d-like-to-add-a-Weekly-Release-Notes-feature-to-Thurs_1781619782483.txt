@@ -1,0 +1,163 @@
+I'd like to add a Weekly Release Notes feature to Thursday Drop.
+
+Goal:
+Create a simple editorial page where I can publish short weekly notes about notable Vintages releases, interesting producers, and wines worth paying attention to.
+
+For now, make it available to all logged-in subscribers, free and paid.
+
+Do not add comments or likes yet. I want this to stay simple, content-only, and low-maintenance for now.
+
+Requirements:
+
+1. Weekly Release Notes page
+
+Create either:
+
+/weekly
+
+or
+
+/release-notes
+
+The page should display:
+
+* title
+* publish date
+* author: Thursday Drop
+* article body using markdown
+* optional hero image
+* optional featured wines section
+
+Newest article first.
+
+2. Admin editor
+
+Add an admin-only editor where I can:
+
+* create article
+* edit article
+* publish article
+* unpublish article
+* preview article
+
+Markdown support is enough. No WYSIWYG editor required unless very easy.
+
+3. Subscriber access
+
+For now:
+
+* available to all logged-in users
+* no paywall
+* no public access unless logged in
+* no email distribution
+
+I want users to discover it on the site first.
+
+4. Navigation
+
+Add a simple nav item:
+
+Weekly Notes
+
+Do not make it the primary call-to-action.
+
+5. Initial article
+
+Create the first article with this content:
+
+# June 18 Vintages Preview: Burgundy and Patagonia
+
+This week's Special Offers release is a relatively small one, featuring two producers that may not be familiar to every Ontario collector:
+
+* Domaine des Petits Champs Lins (Burgundy)
+* Bodega Chacra (Patagonia)
+
+There are no First Growths, Super Tuscans, or major trophy bottles in this release. Still, there are several wines that collectors may find worth exploring.
+
+## Bodega Chacra
+
+Bodega Chacra was founded by Piero Incisa della Rocchetta, grandson of Mario Incisa della Rocchetta, the creator of Sassicaia at Tenuta San Guido.
+
+The estate focuses on Pinot Noir and Chardonnay from Patagonia, where cool temperatures and large day-night temperature swings help preserve freshness and acidity.
+
+### Chacra Treinta y Dos Pinot Noir 2024
+
+98 JS · $199
+
+Named after the vineyard's 1932 planting date, Treinta y Dos is produced from some of the oldest Pinot Noir vines in Patagonia.
+
+Expect a more restrained style than many New World Pinots, with red cherry, rose petal, dried herbs and mineral notes rather than overt ripeness.
+
+For collectors interested in producer pedigree and site expression, this is arguably the most interesting bottle in the release.
+
+### Chacra Chardonnay 2024
+
+98 JS · $164
+
+Chacra's Chardonnay has developed a strong following among collectors looking for alternatives to increasingly expensive white Burgundy.
+
+The style tends to emphasize citrus, orchard fruit, saline minerality and precision rather than richness.
+
+## Domaine des Petits Champs Lins
+
+This producer makes its LCBO debut with a range of Burgundy appellations spanning village, premier cru and grand cru sites.
+
+### Clos des Fiètres Corton Grand Cru 2022
+
+$175
+
+Grand Cru Burgundy at this price point is becoming increasingly uncommon.
+
+The 2022 vintage was warm and generous, producing wines with concentration and structure while maintaining freshness.
+
+Collectors looking for a bottle to cellar may find this one particularly interesting.
+
+### Puligny-Montrachet 2023
+
+$187
+
+Puligny-Montrachet remains one of Burgundy's benchmark white wine villages.
+
+Expect citrus, stone fruit, white flowers and mineral character, with the balance and tension that have made the appellation famous.
+
+### Hospices de Beaune Savigny-Lès-Beaune 2023
+
+$205
+
+The Hospices de Beaune has been one of Burgundy's most important institutions since the 15th century.
+
+Wines connected to the Hospices often attract attention from Burgundy enthusiasts because of their provenance and historical significance.
+
+## Final Thoughts
+
+This is not a headline-grabbing release, but there are several wines worth a closer look.
+
+The Chacra wines provide an opportunity to explore one of Patagonia's most respected estates, while the Burgundy offerings include a Grand Cru and a Hospices bottling that may appeal to collectors seeking something a little different from the usual names.
+
+Ordering opens Thursday at 8:30am ET.
+
+6. Future flexibility
+
+Please structure this so that later we can:
+
+* make notes Pro-only if desired
+* send optional email digests
+* add archive links
+* add related wines
+* add historical release observations
+* add likes or comments later if there is enough user activity
+
+But do not build those features now.
+
+7. Safety
+
+This feature must not:
+
+* create alerts
+* send emails
+* interact with watchlists
+* interact with matching logic
+
+It should be content-only.
+
+Please propose the schema and implementation plan before building.
