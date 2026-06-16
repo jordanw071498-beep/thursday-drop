@@ -240,6 +240,54 @@ export interface WineHistory {
   bottle_sizes?: string[];
 }
 
+export interface ReleaseNoteListItem {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt?: string | null;
+  hero_image_url?: string | null;
+  author: string;
+  article_type: string;
+  status: string;
+  published_at?: string | null;
+  reading_time_minutes?: number | null;
+  view_count: number;
+  created_at: string;
+}
+
+export type ReleaseNoteFeaturedWinesItem = { [key: string]: unknown };
+
+export interface ReleaseNote {
+  id: number;
+  slug: string;
+  title: string;
+  body: string;
+  excerpt?: string | null;
+  hero_image_url?: string | null;
+  author: string;
+  article_type: string;
+  status: string;
+  published_at?: string | null;
+  reading_time_minutes?: number | null;
+  view_count: number;
+  featured_wines: ReleaseNoteFeaturedWinesItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type ReleaseNoteInputFeaturedWinesItem = { [key: string]: unknown };
+
+export interface ReleaseNoteInput {
+  title: string;
+  body: string;
+  slug?: string;
+  excerpt?: string | null;
+  hero_image_url?: string | null;
+  article_type?: string;
+  status?: string;
+  featured_wines?: ReleaseNoteInputFeaturedWinesItem[];
+}
+
 export type ListWinesParams = {
 release_cycle_id?: number;
 region?: string;
@@ -274,5 +322,25 @@ export type GetArchiveHistoryParams = {
 wine_name: string;
 vintage?: string | null;
 bottle_size?: string | null;
+};
+
+export type ListReleaseNotes200 = {
+  notes: ReleaseNoteListItem[];
+};
+
+export type CreateReleaseNote201 = {
+  note: ReleaseNote;
+};
+
+export type GetReleaseNote200 = {
+  note: ReleaseNote;
+};
+
+export type UpdateReleaseNote200 = {
+  note: ReleaseNote;
+};
+
+export type DeleteReleaseNote200 = {
+  success: boolean;
 };
 

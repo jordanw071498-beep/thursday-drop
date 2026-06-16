@@ -28,6 +28,8 @@ import FAQ from "@/pages/FAQ";
 import Contact from "@/pages/Contact";
 import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
+import WeeklyNotes from "@/pages/WeeklyNotes";
+import WeeklyNote from "@/pages/WeeklyNote";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,12 @@ function Router() {
           <Route path="/privacy" component={Privacy} />
 
           {/* Protected Routes */}
+          <Route path="/weekly/:slug">
+            <ProtectedRoute><WeeklyNote /></ProtectedRoute>
+          </Route>
+          <Route path="/weekly">
+            <ProtectedRoute><WeeklyNotes /></ProtectedRoute>
+          </Route>
           <Route path="/history">
             <ProtectedRoute><History /></ProtectedRoute>
           </Route>

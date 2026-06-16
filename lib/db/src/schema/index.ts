@@ -9,3 +9,4 @@ export * from "./password_reset_tokens";
 export * from "./wine_suggestions";
 export * from "./archive";
 export * from "./historical_release_observations";
+export * from "./release_notes";

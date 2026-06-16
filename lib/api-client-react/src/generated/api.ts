@@ -28,16 +28,22 @@ import type {
   CheckoutInput,
   CheckoutResult,
   CreateProfileInput,
+  CreateReleaseNote201,
+  DeleteReleaseNote200,
   EmailSubscribeInput,
   GetArchiveHistoryParams,
+  GetReleaseNote200,
   GetWatchlistSuggestionsParams,
   HealthStatus,
+  ListReleaseNotes200,
   ListWinesParams,
   Profile,
   ReleaseCycle,
+  ReleaseNoteInput,
   ReleaseWithWines,
   ScrapeResult,
   SubscriptionInfo,
+  UpdateReleaseNote200,
   WatchlistItem,
   WatchlistItemInput,
   WeeklyPicksInput,
@@ -2074,4 +2080,371 @@ export function useGetArchiveHistory<TData = Awaited<ReturnType<typeof getArchiv
 
 
 
+
+export const getListReleaseNotesUrl = () => {
+
+
+
+
+  return `/api/release-notes`
+}
+
+/**
+ * @summary List published release notes (newest first)
+ */
+export const listReleaseNotes = async ( options?: RequestInit): Promise<ListReleaseNotes200> => {
+
+  return customFetch<ListReleaseNotes200>(getListReleaseNotesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReleaseNotesQueryKey = () => {
+    return [
+    `/api/release-notes`
+    ] as const;
+    }
+
+
+export const getListReleaseNotesQueryOptions = <TData = Awaited<ReturnType<typeof listReleaseNotes>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReleaseNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReleaseNotesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReleaseNotes>>> = ({ signal }) => listReleaseNotes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReleaseNotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReleaseNotesQueryResult = NonNullable<Awaited<ReturnType<typeof listReleaseNotes>>>
+export type ListReleaseNotesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List published release notes (newest first)
+ */
+
+export function useListReleaseNotes<TData = Awaited<ReturnType<typeof listReleaseNotes>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReleaseNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReleaseNotesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateReleaseNoteUrl = () => {
+
+
+
+
+  return `/api/release-notes`
+}
+
+/**
+ * @summary Create a release note (admin only)
+ */
+export const createReleaseNote = async (releaseNoteInput: ReleaseNoteInput, options?: RequestInit): Promise<CreateReleaseNote201> => {
+
+  return customFetch<CreateReleaseNote201>(getCreateReleaseNoteUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      releaseNoteInput,)
+  }
+);}
+
+
+
+
+export const getCreateReleaseNoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReleaseNote>>, TError,{data: BodyType<ReleaseNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReleaseNote>>, TError,{data: BodyType<ReleaseNoteInput>}, TContext> => {
+
+const mutationKey = ['createReleaseNote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReleaseNote>>, {data: BodyType<ReleaseNoteInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReleaseNote(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReleaseNoteMutationResult = NonNullable<Awaited<ReturnType<typeof createReleaseNote>>>
+    export type CreateReleaseNoteMutationBody = BodyType<ReleaseNoteInput>
+    export type CreateReleaseNoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a release note (admin only)
+ */
+export const useCreateReleaseNote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReleaseNote>>, TError,{data: BodyType<ReleaseNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReleaseNote>>,
+        TError,
+        {data: BodyType<ReleaseNoteInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReleaseNoteMutationOptions(options));
+    }
+
+export const getGetReleaseNoteUrl = (slug: string,) => {
+
+
+
+
+  return `/api/release-notes/${slug}`
+}
+
+/**
+ * @summary Get a single release note by slug
+ */
+export const getReleaseNote = async (slug: string, options?: RequestInit): Promise<GetReleaseNote200> => {
+
+  return customFetch<GetReleaseNote200>(getGetReleaseNoteUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReleaseNoteQueryKey = (slug: string,) => {
+    return [
+    `/api/release-notes/${slug}`
+    ] as const;
+    }
+
+
+export const getGetReleaseNoteQueryOptions = <TData = Awaited<ReturnType<typeof getReleaseNote>>, TError = ErrorType<void>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReleaseNote>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReleaseNoteQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReleaseNote>>> = ({ signal }) => getReleaseNote(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(slug), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReleaseNote>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReleaseNoteQueryResult = NonNullable<Awaited<ReturnType<typeof getReleaseNote>>>
+export type GetReleaseNoteQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a single release note by slug
+ */
+
+export function useGetReleaseNote<TData = Awaited<ReturnType<typeof getReleaseNote>>, TError = ErrorType<void>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReleaseNote>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReleaseNoteQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateReleaseNoteUrl = (id: number,) => {
+
+
+
+
+  return `/api/release-notes/${id}`
+}
+
+/**
+ * @summary Update a release note (admin only)
+ */
+export const updateReleaseNote = async (id: number,
+    releaseNoteInput: ReleaseNoteInput, options?: RequestInit): Promise<UpdateReleaseNote200> => {
+
+  return customFetch<UpdateReleaseNote200>(getUpdateReleaseNoteUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      releaseNoteInput,)
+  }
+);}
+
+
+
+
+export const getUpdateReleaseNoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReleaseNote>>, TError,{id: number;data: BodyType<ReleaseNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateReleaseNote>>, TError,{id: number;data: BodyType<ReleaseNoteInput>}, TContext> => {
+
+const mutationKey = ['updateReleaseNote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateReleaseNote>>, {id: number;data: BodyType<ReleaseNoteInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateReleaseNote(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateReleaseNoteMutationResult = NonNullable<Awaited<ReturnType<typeof updateReleaseNote>>>
+    export type UpdateReleaseNoteMutationBody = BodyType<ReleaseNoteInput>
+    export type UpdateReleaseNoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a release note (admin only)
+ */
+export const useUpdateReleaseNote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReleaseNote>>, TError,{id: number;data: BodyType<ReleaseNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateReleaseNote>>,
+        TError,
+        {id: number;data: BodyType<ReleaseNoteInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateReleaseNoteMutationOptions(options));
+    }
+
+export const getDeleteReleaseNoteUrl = (id: number,) => {
+
+
+
+
+  return `/api/release-notes/${id}`
+}
+
+/**
+ * @summary Delete a release note (admin only)
+ */
+export const deleteReleaseNote = async (id: number, options?: RequestInit): Promise<DeleteReleaseNote200> => {
+
+  return customFetch<DeleteReleaseNote200>(getDeleteReleaseNoteUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteReleaseNoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReleaseNote>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReleaseNote>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteReleaseNote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReleaseNote>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteReleaseNote(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReleaseNoteMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReleaseNote>>>
+
+    export type DeleteReleaseNoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a release note (admin only)
+ */
+export const useDeleteReleaseNote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReleaseNote>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReleaseNote>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteReleaseNoteMutationOptions(options));
+    }
 

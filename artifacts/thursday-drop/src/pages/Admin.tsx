@@ -465,6 +465,7 @@ export default function Admin() {
               { value: "stripe", label: "Stripe Health" },
               { value: "newsletter", label: "Newsletter" },
               { value: "archive-search", label: "Archive Search" },
+              { value: "weekly-notes", label: "Weekly Notes" },
             ].map((tab) => (
               <TabsTrigger
                 key={tab.value}
@@ -1424,6 +1425,11 @@ export default function Admin() {
             <ArchiveSearchTab token={token} />
           </TabsContent>
 
+          {/* Weekly Notes editor */}
+          <TabsContent value="weekly-notes">
+            <WeeklyNotesTab token={token} />
+          </TabsContent>
+
           {/* Newsletter */}
           <TabsContent value="newsletter">
             <div className="bg-card border border-border p-8 space-y-6">
@@ -1491,6 +1497,354 @@ function StatCard({
       <p className={`font-mono text-3xl font-bold ${highlight ? "text-primary" : muted ? "text-muted-foreground" : "text-foreground"}`}>
         {value ?? "—"}
       </p>
+    </div>
+  );
+}
+
+interface AdminReleaseNote {
+  id: number;
+  slug: string;
+  title: string;
+  body: string;
+  excerpt: string | null;
+  hero_image_url: string | null;
+  author: string;
+  article_type: string;
+  status: string;
+  published_at: string | null;
+  reading_time_minutes: number | null;
+  view_count: number;
+  featured_wines: unknown[];
+  created_at: string;
+  updated_at: string;
+}
+
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+const EMPTY_FORM = {
+  title: "",
+  slug: "",
+  body: "",
+  excerpt: "",
+  hero_image_url: "",
+  featured_wines_json: "[]",
+  status: "draft",
+};
+
+function WeeklyNotesTab({ token }: { token: string | null }) {
+  const { toast } = useToast();
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const { data, refetch, isLoading } = useAdminFetch<{ notes: AdminReleaseNote[] }>("/release-notes-admin", token);
+  const notes = data?.notes ?? [];
+
+  const resetForm = () => { setForm(EMPTY_FORM); setEditingId(null); };
+
+  const handleTitleChange = (title: string) => {
+    setForm((f) => ({
+      ...f,
+      title,
+      slug: editingId === null ? slugify(title) : f.slug,
+    }));
+  };
+
+  const startEdit = (note: AdminReleaseNote) => {
+    setEditingId(note.id);
+    setForm({
+      title: note.title,
+      slug: note.slug,
+      body: note.body,
+      excerpt: note.excerpt ?? "",
+      hero_image_url: note.hero_image_url ?? "",
+      featured_wines_json: JSON.stringify(note.featured_wines ?? [], null, 2),
+      status: note.status,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.body.trim()) {
+      toast({ title: "Title and body are required", variant: "destructive" });
+      return;
+    }
+    let featured_wines: unknown[] = [];
+    try {
+      featured_wines = JSON.parse(form.featured_wines_json || "[]");
+    } catch {
+      toast({ title: "Featured wines JSON is invalid", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        title: form.title.trim(),
+        slug: form.slug.trim() || slugify(form.title),
+        body: form.body,
+        excerpt: form.excerpt.trim() || null,
+        hero_image_url: form.hero_image_url.trim() || null,
+        status: form.status,
+        featured_wines,
+      };
+
+      const url = editingId !== null ? `/api/release-notes/${editingId}` : "/api/release-notes";
+      const method = editingId !== null ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? String(res.status));
+      toast({ title: editingId !== null ? "Article updated" : "Article created" });
+      resetForm();
+      refetch();
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async (note: AdminReleaseNote) => {
+    const nextStatus = note.status === "published" ? "draft" : "published";
+    try {
+      const res = await fetch(`/api/release-notes/${note.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      toast({ title: nextStatus === "published" ? "Published" : "Reverted to draft" });
+      refetch();
+    } catch {
+      toast({ title: "Failed to update status", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (note: AdminReleaseNote) => {
+    if (deletingId !== note.id) { setDeletingId(note.id); return; }
+    try {
+      const res = await fetch(`/api/release-notes/${note.id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      toast({ title: "Deleted" });
+      if (editingId === note.id) resetForm();
+      refetch();
+    } catch {
+      toast({ title: "Delete failed", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Create / Edit form */}
+      <div className="bg-card border border-border p-8 space-y-5">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-serif text-2xl">
+            {editingId !== null ? "Edit Article" : "New Article"}
+          </h2>
+          {editingId !== null && (
+            <button
+              onClick={resetForm}
+              className="text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Title *</label>
+            <Input
+              value={form.title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="June 18 drop: Burgundy, Barossa, and a bargain"
+              className="rounded-none bg-background"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Slug</label>
+            <Input
+              value={form.slug}
+              onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
+              placeholder="auto-generated from title"
+              className="rounded-none bg-background font-mono text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Status</label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+              className="w-full h-9 rounded-none bg-background border border-input text-sm px-3 text-foreground"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs uppercase tracking-widest text-muted-foreground">Hero Image URL</label>
+            <Input
+              value={form.hero_image_url}
+              onChange={(e) => setForm((f) => ({ ...f, hero_image_url: e.target.value }))}
+              placeholder="https://…"
+              className="rounded-none bg-background"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs uppercase tracking-widest text-muted-foreground">Excerpt</label>
+          <Textarea
+            value={form.excerpt}
+            onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))}
+            placeholder="2–3 sentence summary shown on the list page"
+            rows={2}
+            className="rounded-none bg-background text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs uppercase tracking-widest text-muted-foreground">Body (Markdown) *</label>
+          <Textarea
+            value={form.body}
+            onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+            placeholder="## Introduction&#10;&#10;Your article content here…"
+            rows={16}
+            className="rounded-none bg-background font-mono text-xs leading-relaxed"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs uppercase tracking-widest text-muted-foreground">
+            Featured Wines (JSON array)
+          </label>
+          <Textarea
+            value={form.featured_wines_json}
+            onChange={(e) => setForm((f) => ({ ...f, featured_wines_json: e.target.value }))}
+            placeholder={`[{"name":"Château Margaux","vintage":"2020","score":"98","score_source":"WA","price":"395.00","lcbo_number":"12345","note":"Ethereal."}]`}
+            rows={5}
+            className="rounded-none bg-background font-mono text-xs leading-relaxed"
+          />
+        </div>
+
+        <Button
+          onClick={handleSave}
+          disabled={saving || !form.title.trim() || !form.body.trim()}
+          className="rounded-none font-bold tracking-widest uppercase"
+        >
+          {saving ? "Saving…" : editingId !== null ? "Update Article" : "Create Article"}
+        </Button>
+      </div>
+
+      {/* Articles list */}
+      <div className="bg-card border border-border">
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <h2 className="font-serif text-2xl">All Articles</h2>
+          <span className="text-xs text-muted-foreground uppercase tracking-widest">
+            {notes.length} total
+          </span>
+        </div>
+
+        {isLoading ? (
+          <div className="p-12 text-center text-muted-foreground text-sm animate-pulse">Loading…</div>
+        ) : notes.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">No articles yet. Create one above.</div>
+        ) : (
+          <div className="divide-y divide-border">
+            {notes.map((note) => (
+              <div key={note.id} className="p-6 flex items-start justify-between gap-6">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span
+                      className={`text-xs px-2 py-0.5 border uppercase tracking-widest shrink-0 ${
+                        note.status === "published"
+                          ? "bg-primary/15 text-primary border-primary/30"
+                          : "bg-muted/40 text-muted-foreground border-border"
+                      }`}
+                    >
+                      {note.status}
+                    </span>
+                    {note.reading_time_minutes && (
+                      <span className="text-xs text-muted-foreground">
+                        {note.reading_time_minutes} min
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {note.view_count} views
+                    </span>
+                  </div>
+                  <p className="font-medium text-foreground truncate">{note.title}</p>
+                  <p className="text-xs text-muted-foreground font-mono">/weekly/{note.slug}</p>
+                  {note.published_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Published {new Date(note.published_at).toLocaleDateString("en-CA")}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => startEdit(note)}
+                    className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={note.status === "published" ? "outline" : "default"}
+                    onClick={() => handleToggleStatus(note)}
+                    className="rounded-none text-xs tracking-widest uppercase h-7 px-3"
+                  >
+                    {note.status === "published" ? "Unpublish" : "Publish"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(note)}
+                    className={`rounded-none text-xs tracking-widest uppercase h-7 px-3 ${
+                      deletingId === note.id
+                        ? "border-red-700/60 text-red-400 hover:bg-red-950/20"
+                        : ""
+                    }`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    {deletingId === note.id ? "Confirm?" : "Delete"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

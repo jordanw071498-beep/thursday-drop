@@ -68,6 +68,8 @@ export function Nav() {
                 <Divider />
                 <NavLink href="/watchlist">Watchlist</NavLink>
                 <Divider />
+                <NavLink href="/weekly">Weekly Notes</NavLink>
+                <Divider />
                 <NavLink href="/account">Account</NavLink>
                 <Divider />
                 <button
@@ -115,6 +117,8 @@ export function Nav() {
               {profile ? (
                 <>
                   <MobileNavLink href="/watchlist" onClose={() => setMenuOpen(false)}>Watchlist</MobileNavLink>
+                  <div className="w-full h-px bg-border/40 my-4" />
+                  <MobileNavLink href="/weekly" onClose={() => setMenuOpen(false)}>Weekly Notes</MobileNavLink>
                   <div className="w-full h-px bg-border/40 my-4" />
                   <MobileNavLink href="/account" onClose={() => setMenuOpen(false)}>Account</MobileNavLink>
                   <div className="w-full h-px bg-border/40 my-4" />

@@ -421,3 +421,126 @@ export const GetArchiveHistoryResponse = zod.object({
 })
 
 
+/**
+ * @summary List published release notes (newest first)
+ */
+export const ListReleaseNotesResponse = zod.object({
+  "notes": zod.array(zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "excerpt": zod.string().nullish(),
+  "hero_image_url": zod.string().nullish(),
+  "author": zod.string(),
+  "article_type": zod.string(),
+  "status": zod.string(),
+  "published_at": zod.string().nullish(),
+  "reading_time_minutes": zod.number().nullish(),
+  "view_count": zod.number(),
+  "created_at": zod.string()
+}))
+})
+
+
+/**
+ * @summary Create a release note (admin only)
+ */
+export const CreateReleaseNoteBody = zod.object({
+  "title": zod.string(),
+  "body": zod.string(),
+  "slug": zod.string().optional(),
+  "excerpt": zod.string().nullish(),
+  "hero_image_url": zod.string().nullish(),
+  "article_type": zod.string().optional(),
+  "status": zod.string().optional(),
+  "featured_wines": zod.array(zod.object({
+
+}).passthrough()).optional()
+})
+
+
+/**
+ * @summary Get a single release note by slug
+ */
+export const GetReleaseNoteParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetReleaseNoteResponse = zod.object({
+  "note": zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "excerpt": zod.string().nullish(),
+  "hero_image_url": zod.string().nullish(),
+  "author": zod.string(),
+  "article_type": zod.string(),
+  "status": zod.string(),
+  "published_at": zod.string().nullish(),
+  "reading_time_minutes": zod.number().nullish(),
+  "view_count": zod.number(),
+  "featured_wines": zod.array(zod.object({
+
+}).passthrough()),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+})
+
+
+/**
+ * @summary Update a release note (admin only)
+ */
+export const UpdateReleaseNoteParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateReleaseNoteBody = zod.object({
+  "title": zod.string(),
+  "body": zod.string(),
+  "slug": zod.string().optional(),
+  "excerpt": zod.string().nullish(),
+  "hero_image_url": zod.string().nullish(),
+  "article_type": zod.string().optional(),
+  "status": zod.string().optional(),
+  "featured_wines": zod.array(zod.object({
+
+}).passthrough()).optional()
+})
+
+export const UpdateReleaseNoteResponse = zod.object({
+  "note": zod.object({
+  "id": zod.number(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "excerpt": zod.string().nullish(),
+  "hero_image_url": zod.string().nullish(),
+  "author": zod.string(),
+  "article_type": zod.string(),
+  "status": zod.string(),
+  "published_at": zod.string().nullish(),
+  "reading_time_minutes": zod.number().nullish(),
+  "view_count": zod.number(),
+  "featured_wines": zod.array(zod.object({
+
+}).passthrough()),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+})
+
+
+/**
+ * @summary Delete a release note (admin only)
+ */
+export const DeleteReleaseNoteParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteReleaseNoteResponse = zod.object({
+  "success": zod.boolean()
+})
+
+

@@ -13,6 +13,7 @@ import morningAlertsRouter from "./morning-alerts";
 import thursdayCronRouter from "./thursday-cron";
 import accountRouter from "./account";
 import archiveRouter from "./archive";
+import releaseNotesRouter from "./release-notes";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(adminRouter);
 router.use(morningAlertsRouter);
 router.use(thursdayCronRouter);
 router.use(archiveRouter);
+router.use(releaseNotesRouter);
 
 export default router;
