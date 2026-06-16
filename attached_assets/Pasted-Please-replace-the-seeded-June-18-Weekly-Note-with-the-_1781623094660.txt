@@ -1,0 +1,180 @@
+Please replace the seeded June 18 Weekly Note with the exact article below.
+
+Also remove the incorrect featured wines currently attached to the note:
+
+* Jadot Nuits-Saint-Georges
+* Zuccardi Pinot
+* Stag's Leap ARCADIA
+* Planeta Grillo
+
+Those wines were placeholder/demo data and should not appear anywhere in this article.
+
+Do not invent or infer featured wines going forward. If I have not explicitly provided the wine, leave it blank or ask me.
+
+Title:
+June 18 Vintages Preview: Burgundy and Patagonia
+
+Slug:
+june-18-2026-vintages-preview
+
+Excerpt:
+A deeper look at this week's two Special Offers collections: Bodega Chacra from Patagonia and Domaine des Petits Champs Lins from Burgundy.
+
+Article body:
+
+# June 18 Vintages Preview: Burgundy and Patagonia
+
+Most weeks, LCBO Vintages collectors are focused on familiar names: Bordeaux, Barolo, Brunello, Champagne, Burgundy and occasionally the blue-chip Super Tuscans.
+
+This week's release is different.
+
+There are no First Growths. No cult Napa Cabernet. No trophy bottles likely to dominate collector conversations.
+
+Instead, this week's Special Offers release offers a closer look at two producers whose stories are arguably more interesting than their names are famous.
+
+## Bodega Chacra: The Sassicaia Connection Few Collectors Know
+
+At first glance, Patagonia seems an unlikely place to find one of the world's most respected Pinot Noir producers.
+
+Yet Bodega Chacra has quietly become one of the benchmark estates in South America.
+
+The project was founded by **Piero Incisa della Rocchetta**, grandson of **Mario Incisa della Rocchetta**, the creator of Sassicaia and the man largely responsible for the Super Tuscan movement.
+
+Sassicaia changed the course of Italian wine history. In the 1960s and 1970s, it challenged the assumption that great wine could only come from traditional appellations. The estate's success ultimately helped reshape how the world viewed Italian fine wine.
+
+Rather than continue that story in Tuscany, Piero looked thousands of kilometres away to Patagonia.
+
+What he found were old, ungrafted Pinot Noir vineyards planted in the 1930s, preserved by Patagonia's isolation and dry climate.
+
+Today, Chacra is widely regarded as one of the most serious Pinot Noir producers outside Burgundy.
+
+### Chacra Treinta y Dos Pinot Noir 2024
+
+The name "Treinta y Dos" refers to the vineyard's planting year: 1932.
+
+These are among the oldest Pinot Noir vines in South America.
+
+Collectors expecting a rich, heavily oaked New World Pinot may be surprised. Chacra's style is built around restraint and site expression. Think red cherry, wild strawberry, rose petal, dried herbs and a distinctly mineral character.
+
+The Sassicaia connection will attract attention. The old-vine pedigree is what makes the wine genuinely interesting.
+
+### Chacra Chardonnay 2024
+
+Chacra's Chardonnay may be even more intriguing than its Pinot Noir.
+
+Over the last decade, the estate has worked closely with some of Burgundy's most respected winemaking minds, developing a style that emphasizes freshness, precision and texture over richness.
+
+The result is a Chardonnay that often draws comparisons to white Burgundy while remaining unmistakably Patagonian.
+
+Expect citrus, orchard fruit, saline notes and bright acidity.
+
+## Domaine des Petits Champs Lins: A First Look at an Unfamiliar Burgundy Name
+
+Many Burgundy buyers focus almost entirely on famous producers.
+
+That approach has become increasingly difficult as prices have risen.
+
+One consequence is that collectors are now spending more time looking at lesser-known domaines with access to excellent vineyard sites.
+
+Domaine des Petits Champs Lins falls into that category.
+
+The estate is making a rare appearance through LCBO Vintages, offering wines that range from village-level Burgundy to Grand Cru sites.
+
+### Clos des Fiètres Corton Grand Cru 2022
+
+The most notable wine in the release is the Corton Grand Cru.
+
+Corton occupies a unique position in Burgundy. It is the only Grand Cru appellation in the Côte de Beaune permitted to produce red wine at scale, and historically has been associated with some of the region's longest-lived wines.
+
+The 2022 vintage delivered ripe fruit, concentration and structure while retaining freshness.
+
+At $175, this is not an inexpensive bottle. By Grand Cru Burgundy standards, however, it is increasingly difficult to find wines from Grand Cru vineyards at this level.
+
+For collectors looking to cellar Burgundy rather than drink it immediately, this is the bottle that stands out.
+
+### Puligny-Montrachet 2023
+
+Few villages carry more weight among white Burgundy collectors than Puligny-Montrachet.
+
+The village has become synonymous with precision, tension and mineral-driven Chardonnay.
+
+The appeal here is not novelty. It is consistency.
+
+Collectors know what Puligny-Montrachet is supposed to taste like, and when a new producer arrives in the market, it provides an opportunity to see how that producer interprets one of Burgundy's most famous terroirs.
+
+### Hospices de Beaune Savigny-Lès-Beaune 2023
+
+The most historically interesting wine in the release may be the Hospices bottling.
+
+The Hospices de Beaune was founded in 1443 as a charitable hospital and remains one of Burgundy's most important institutions.
+
+Over centuries, vineyard holdings were donated to the Hospices. Today, those vineyards supply wines that are sold through the famous annual Hospices de Beaune auction.
+
+Because of that connection, Hospices wines carry a level of provenance and historical significance that extends beyond the bottle itself.
+
+For Burgundy enthusiasts, that story is often as compelling as the wine.
+
+## Final Thoughts
+
+This is not one of the year's major collector releases.
+
+There are no obvious trophy bottles.
+
+But there are stories worth paying attention to.
+
+A Pinot Noir estate founded by the grandson of Sassicaia's creator.
+
+A Grand Cru Burgundy from an unfamiliar producer.
+
+A Hospices de Beaune bottling connected to nearly six centuries of Burgundian history.
+
+For collectors willing to look beyond the most recognizable labels, this week's release offers more than first impressions might suggest.
+
+Ordering opens Thursday at 8:30am ET.
+
+Featured wines JSON:
+
+[
+{
+"name": "Chacra Treinta y Dos Pinot Noir",
+"vintage": "2024",
+"score": 98,
+"score_source": "JS",
+"price": 199,
+"note": "Old-vine Patagonia Pinot Noir from vines planted in 1932."
+},
+{
+"name": "Chacra Chardonnay",
+"vintage": "2024",
+"score": 98,
+"score_source": "JS",
+"price": 164,
+"note": "Patagonia Chardonnay with freshness, precision and growing collector interest."
+},
+{
+"name": "Domaine des Petits Champs Lins Clos des Fiètres Corton Grand Cru",
+"vintage": "2022",
+"score": null,
+"score_source": null,
+"price": 175,
+"note": "Grand Cru Burgundy at an increasingly uncommon price point."
+},
+{
+"name": "Petits Champs Lins Puligny-Montrachet",
+"vintage": "2023",
+"score": null,
+"score_source": null,
+"price": 187,
+"note": "White Burgundy from one of the benchmark villages for Chardonnay."
+},
+{
+"name": "Petits Champs Lins Cuvée Fouquerand Savigny-Lès-Beaune Hospices de Beaune",
+"vintage": "2023",
+"score": null,
+"score_source": null,
+"price": 205,
+"note": "Hospices de Beaune provenance with collector interest."
+}
+]
+
+Please confirm once the incorrect placeholder wines are removed and the corrected article is live.
