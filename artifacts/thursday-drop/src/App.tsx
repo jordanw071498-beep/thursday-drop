@@ -47,7 +47,7 @@ function Router() {
     <div className="min-h-screen bg-background text-foreground font-sans flex flex-col">
       <ScrollToTop />
       <Nav />
-      <div className="pt-20 flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col">
         <Switch>
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />

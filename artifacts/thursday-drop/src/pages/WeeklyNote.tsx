@@ -54,7 +54,7 @@ export default function WeeklyNote() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background px-6 py-16">
+      <div className="min-h-screen bg-background px-6 py-10">
         <div className="max-w-3xl mx-auto">
           <div className="text-muted-foreground text-sm animate-pulse">Loading…</div>
         </div>
@@ -64,7 +64,7 @@ export default function WeeklyNote() {
 
   if (error || !note) {
     return (
-      <div className="min-h-screen bg-background px-6 py-16">
+      <div className="min-h-screen bg-background px-6 py-10">
         <div className="max-w-3xl mx-auto space-y-6">
           <Link
             href="/weekly"
@@ -84,7 +84,7 @@ export default function WeeklyNote() {
   const hasFeaturedWines = Array.isArray(note.featured_wines) && note.featured_wines.length > 0;
 
   return (
-    <div className="min-h-screen bg-background px-6 py-16">
+    <div className="min-h-screen bg-background px-6 py-10">
       <div className="max-w-3xl mx-auto space-y-10">
 
         <Link

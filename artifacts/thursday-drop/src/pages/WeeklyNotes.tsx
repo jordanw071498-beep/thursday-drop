@@ -2,6 +2,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { BookOpen, Clock } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 
 interface NoteListItem {
   id: number;
@@ -37,34 +38,31 @@ export default function WeeklyNotes() {
   const notes = data?.notes ?? [];
 
   return (
-    <div className="min-h-screen bg-background px-6 py-16">
-      <div className="max-w-3xl mx-auto space-y-12">
-        <header>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">Thursday Drop</p>
-          <h1 className="font-serif text-5xl text-primary mb-4">Weekly Notes</h1>
-          <p className="text-muted-foreground text-lg">
-            Curation notes, producer spotlights, and what we're watching in each Vintages drop.
-          </p>
-        </header>
+    <div className="min-h-screen bg-background">
+      <PageHeader
+        title="Weekly Notes"
+        subtitle="Curation notes, producer spotlights, and what to watch in each Vintages drop."
+      />
 
+      <div className="max-w-7xl mx-auto px-6 py-10">
         {isLoading && (
           <div className="text-muted-foreground text-sm animate-pulse">Loading articles…</div>
         )}
 
         {!isLoading && !error && notes.length === 0 && (
-          <div className="border border-border p-12 text-center">
+          <div className="border border-border p-16 text-center">
             <BookOpen className="h-8 w-8 mx-auto mb-4 text-muted-foreground opacity-40" />
             <p className="text-muted-foreground">No articles published yet. Check back after the next drop.</p>
           </div>
         )}
 
         {notes.length > 0 && (
-          <div className="space-y-0 divide-y divide-border border-y border-border">
+          <div className="max-w-3xl space-y-0 divide-y divide-border border-y border-border">
             {notes.map((note) => (
               <Link
                 key={note.id}
                 href={`/weekly/${note.slug}`}
-                className="block group py-8 px-1 hover:bg-card/40 transition-colors"
+                className="block group py-8 hover:bg-card/40 transition-colors px-1"
               >
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-xs uppercase tracking-[0.15em] text-muted-foreground">
