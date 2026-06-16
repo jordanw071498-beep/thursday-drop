@@ -10,7 +10,17 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  keepAlive: true,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
+});
+
+pool.on("error", (err) => {
+  console.error({ err }, "pg pool client error — evicting stale client");
+});
+
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
