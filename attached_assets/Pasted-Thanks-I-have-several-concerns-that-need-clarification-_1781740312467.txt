@@ -1,0 +1,70 @@
+Thanks. I have several concerns that need clarification before tomorrow morning.
+
+1. Cellar Collection alerts
+
+You mentioned unsent announcement alerts for Panizzi and Boscarelli.
+
+These are not new releases. They were announced during the Cellar Collection release earlier this month.
+
+Why are announcement alerts still being generated or queued for these wines?
+
+Please investigate the root cause and confirm whether this is expected behavior or a bug.
+
+2. Chacra and Domaine announcements
+
+The only wines announced last week and releasing tomorrow are:
+
+* Bodega Chacra
+* Domaine des Petits Champs Lins
+
+Why are any users receiving alerts related to other wines?
+
+Please explain exactly what logic is creating those alerts and whether old releases are being reprocessed incorrectly.
+
+3. Scraper automation
+
+You stated:
+
+“the scraper at 9am ET will check for new matches”
+
+Why would a manual scraper or manual trigger be required?
+
+My understanding is that all scraping and alert generation should run automatically.
+
+Please confirm:
+
+* Which jobs are fully automated
+* Which jobs require external cron triggers
+* Which jobs rely on the Replit server remaining online
+* Whether tomorrow’s workflow is completely automated end-to-end
+
+4. Morning reminders
+
+This is my highest priority.
+
+ricardojasson9@gmail.com MUST receive the Chacra morning reminder at exactly 7:00am ET tomorrow.
+
+Please do not assume this will happen.
+
+I need verification of:
+
+* What specific process triggers the 7:00am email
+* Whether that process is currently active
+* Whether it has successfully run in production before
+* Whether there is any risk it will not execute tomorrow
+
+If there is any uncertainty, implement a fix tonight and test it.
+
+5. Full email recipient list
+
+For each of the 6 users receiving morning reminders tomorrow, provide:
+
+* Which wines are in their reminder email
+* Why those wines qualified
+* Whether each wine is part of tomorrow’s release
+
+I want to verify that only valid June 18 releases are being included.
+
+6. Final verification
+
+After completing the above, please provide a final go/no-go assessment for tomorrow’s release and explicitly confirm whether Ricardo’s Chacra reminder email is guaranteed to be sent at 7:00am ET.
