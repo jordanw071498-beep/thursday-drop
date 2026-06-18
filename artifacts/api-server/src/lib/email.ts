@@ -419,6 +419,7 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
       and(
         eq(alertsTable.morning_alert_sent, false),
         eq(alertsTable.alert_source, "scraper_match"),
+        eq(releaseCyclesTable.status, "preview"),
         isNotNull(releaseCyclesTable.release_opens_at),
         gte(releaseCyclesTable.release_opens_at, todayUTC),
         lt(releaseCyclesTable.release_opens_at, tomorrowUTC),
