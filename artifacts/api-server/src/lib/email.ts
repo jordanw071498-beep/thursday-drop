@@ -255,8 +255,8 @@ function buildMorningDigestHtml(wines: WineEntry[], unsubscribeToken?: string | 
 
   const heading =
     wines.length === 1
-      ? "Your watchlist wine opens for ordering tomorrow"
-      : `Your ${wines.length} watchlist wines open for ordering tomorrow`;
+      ? "Your watchlist wine opens for ordering today"
+      : `Your ${wines.length} watchlist wines open for ordering today`;
 
   const inner = `
     <h1 style="color:#F2EBD9;font-size:20px;line-height:1.3;margin:0 0 8px;font-family:Georgia,serif;">${heading}</h1>
@@ -399,14 +399,12 @@ export async function sendPendingAlerts({ bypassDigestWindow = true }: { bypassD
 // ─── Morning Reminder (digest — one email per user, all wines opening today) ──
 
 export async function sendMorningAlerts(): Promise<{ sent: number }> {
-  // Cron fires Wednesday 7am ET — remind users about wines opening TOMORROW (Thursday 8:30am ET).
-  // Window: release_opens_at falls anywhere in the UTC calendar day after the current one.
+  // Cron fires Thursday 7am ET — wines in the current preview cycle open for ordering
+  // at 8:30am ET the same day. Window covers the full UTC calendar day of release_opens_at.
   const todayUTC = new Date();
   todayUTC.setUTCHours(0, 0, 0, 0);
   const tomorrowUTC = new Date(todayUTC);
   tomorrowUTC.setUTCDate(tomorrowUTC.getUTCDate() + 1);
-  const dayAfterUTC = new Date(tomorrowUTC);
-  dayAfterUTC.setUTCDate(dayAfterUTC.getUTCDate() + 1);
 
   const rows = await db
     .select({
@@ -425,8 +423,8 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
         eq(alertsTable.alert_source, "scraper_match"),
         eq(releaseCyclesTable.status, "preview"),
         isNotNull(releaseCyclesTable.release_opens_at),
-        gte(releaseCyclesTable.release_opens_at, tomorrowUTC),
-        lt(releaseCyclesTable.release_opens_at, dayAfterUTC),
+        gte(releaseCyclesTable.release_opens_at, todayUTC),
+        lt(releaseCyclesTable.release_opens_at, tomorrowUTC),
       ),
     );
 
@@ -495,8 +493,8 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
 
     const subject =
       wines.length === 1
-        ? `${wines[0].wine_name} opens for ordering tomorrow at 8:30am ET`
-        : `${wines.length} watchlist wines open for ordering tomorrow at 8:30am ET`;
+        ? `${wines[0].wine_name} opens for ordering today at 8:30am ET`
+        : `${wines.length} watchlist wines open for ordering today at 8:30am ET`;
 
     try {
       await resend.emails.send({
@@ -685,7 +683,7 @@ export async function sendTestAlert(toEmail: string): Promise<{ sent: number; re
   const r2 = await resend.emails.send({
     from: FROM_ALERTS,
     to: toEmail,
-    subject: `${morningWine.wine_name} opens for ordering tomorrow at 8:30am ET`,
+    subject: `${morningWine.wine_name} opens for ordering today at 8:30am ET`,
     html: buildMorningDigestHtml([morningWine]),
   });
   logger.info({ resendResponse: r2 }, "Test morning email Resend response");
@@ -737,7 +735,7 @@ export async function sendMorningReminderPreview(
   };
 
   const subject =
-    `${wine.wine_name} opens for ordering tomorrow at 8:30am ET`;
+    `${wine.wine_name} opens for ordering today at 8:30am ET`;
 
   const resend = getResendClient();
   await resend.emails.send({

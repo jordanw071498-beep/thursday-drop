@@ -10,10 +10,10 @@ if (!rawPort) throw new Error("PORT environment variable is required.");
 const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) throw new Error(`Invalid PORT value: "${rawPort}"`);
 
-// Send morning reminders at 7am Eastern every Wednesday —
-// the morning before preview wines go live for ordering on Thursday at 8:30am ET.
-cron.schedule("0 7 * * 3", async () => {
-  logger.info("Cron: Wednesday 7am ET morning alerts starting");
+// Send morning reminders at 7am Eastern every Thursday —
+// wines in the current preview cycle open for ordering at 8:30am ET the same day.
+cron.schedule("0 7 * * 4", async () => {
+  logger.info("Cron: Thursday 7am ET morning alerts starting");
   try {
     const { sent } = await sendMorningAlerts();
     logger.info({ sent }, "Cron: 7am morning alerts complete");
@@ -22,9 +22,9 @@ cron.schedule("0 7 * * 3", async () => {
   }
 }, { timezone: "America/Toronto" });
 
-// Backup run at 8am Eastern Wednesday in case 7am run missed anyone
-cron.schedule("0 8 * * 3", async () => {
-  logger.info("Cron: Wednesday 8am ET morning alerts starting");
+// Backup run at 8am Eastern Thursday in case 7am run missed anyone
+cron.schedule("0 8 * * 4", async () => {
+  logger.info("Cron: Thursday 8am ET morning alerts starting");
   try {
     const { sent } = await sendMorningAlerts();
     logger.info({ sent }, "Cron: 8am morning alerts complete");
