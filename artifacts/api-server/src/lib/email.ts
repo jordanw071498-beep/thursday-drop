@@ -18,6 +18,7 @@ function getResendClient() {
 
 const FROM_ALERTS = "Thursday Drop <alerts@thursdaydrop.ca>";
 const FROM_PICKS = "Thursday Drop <alerts@thursdaydrop.ca>";
+const CC_ADMIN = "thursdaydrop.ca@gmail.com";
 const BASE_URL = "https://thursdaydrop.ca";
 
 // ─── Shared email layout helpers ─────────────────────────────────────────────
@@ -374,6 +375,7 @@ export async function sendPendingAlerts({ bypassDigestWindow = true }: { bypassD
       await resend.emails.send({
         from: FROM_ALERTS,
         to: profile.email,
+        cc: CC_ADMIN,
         subject,
         html: buildAnnouncementDigestHtml(wines, unsubToken),
       });
@@ -500,6 +502,7 @@ export async function sendMorningAlerts(): Promise<{ sent: number }> {
       await resend.emails.send({
         from: FROM_ALERTS,
         to: profile.email,
+        cc: CC_ADMIN,
         subject,
         html: buildMorningDigestHtml(wines, unsubToken),
       });
@@ -804,6 +807,7 @@ export async function sendWeeklyPicks(subject: string, body: string): Promise<{ 
       await resend.emails.send({
         from: FROM_PICKS,
         to: profile.email,
+        cc: CC_ADMIN,
         subject,
         html: emailWrapper(`
           <h1 style="color:#B8860B;font-size:20px;margin:0 0 24px;font-family:Georgia,serif;">Weekly Picks</h1>
