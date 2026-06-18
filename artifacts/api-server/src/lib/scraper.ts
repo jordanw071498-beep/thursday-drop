@@ -484,7 +484,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[], isTest = false):
         try {
           await db
             .insert(alertsTable)
-            .values({ user_id: item.user_id, wine_id: wine.id, wine_name: wine.wine_name, is_test: isTest })
+            .values({ user_id: item.user_id, wine_id: wine.id, wine_name: wine.wine_name, is_test: isTest, alert_source: "scraper_match" })
             .onConflictDoNothing();
           matched++;
         } catch {
@@ -500,7 +500,7 @@ async function runMatchingEngine(insertedWines: InsertedWine[], isTest = false):
       try {
         await db
           .insert(alertsTable)
-          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name, is_test: isTest })
+          .values({ user_id: catItem.user_id, wine_id: wine.id, wine_name: wine.wine_name, is_test: isTest, alert_source: "scraper_match" })
           .onConflictDoNothing();
         matched++;
       } catch {
@@ -578,7 +578,7 @@ export async function queueAlertsForNewWatchlistItem(
       try {
         await db
           .insert(alertsTable)
-          .values({ user_id: userId, wine_id: wine.id, wine_name: wine.wine_name })
+          .values({ user_id: userId, wine_id: wine.id, wine_name: wine.wine_name, alert_source: "watchlist_add" })
           .onConflictDoNothing();
         matched++;
         logger.info({ userId, wineId: wine.id, wineName: wine.wine_name }, "Alert queued for late watchlist addition");
@@ -634,7 +634,7 @@ export async function queueAlertsForNewWatchlistCategory(
     try {
       await db
         .insert(alertsTable)
-        .values({ user_id: userId, wine_id: wine.id, wine_name: wine.wine_name })
+        .values({ user_id: userId, wine_id: wine.id, wine_name: wine.wine_name, alert_source: "watchlist_add" })
         .onConflictDoNothing();
       matched++;
       logger.info({ userId, wineId: wine.id, wineName: wine.wine_name, category }, "Alert queued for late category addition");

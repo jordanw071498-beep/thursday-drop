@@ -17,6 +17,11 @@ export const alertsTable = pgTable("alerts", {
   // Test mode — alerts created while Test Mode is ON; never sent to real users
   is_test: boolean("is_test").notNull().default(false),
   created_at: timestamp("created_at").notNull().defaultNow(),
+  // Source of this alert — determines morning reminder eligibility:
+  //   'scraper_match'  — wine was newly scraped and matched an existing watchlist item
+  //   'watchlist_add'  — user added a watchlist item that matched a wine already in the DB
+  // Only 'scraper_match' alerts receive morning reminders. NULL = legacy row (pre-backfill).
+  alert_source: text("alert_source"),
 }, (t) => ({
   // One alert row per user per wine — prevents duplicate emails when multiple
   // watchlist items match the same wine, or if the scraper runs concurrently.
